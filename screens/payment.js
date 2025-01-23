@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import tw from "twrnc";
 
-const MERCHANT_UPI_ID = "7742056540@axl";
+const MERCHANT_UPI_ID = "9116464532@axl";
 
 const creditPackages = [
   {
