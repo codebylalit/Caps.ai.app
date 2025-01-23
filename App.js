@@ -1,20 +1,27 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import { SafeAreaView } from "react-native";
+import tw from "twrnc";
+import { AuthProvider } from "./authcontext";
+import HomeScreen from "./screens/home";
+import GeneratorScreen from "./screens/genrate";
 
-export default function App() {
+const CaptionGenerator = () => {
+  const [activeMode, setActiveMode] = useState(null);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <AuthProvider>
+      <SafeAreaView style={tw`flex-1 bg-slate-50`}>
+        {activeMode === null ? (
+          <HomeScreen setActiveMode={setActiveMode} />
+        ) : (
+          <GeneratorScreen
+            activeMode={activeMode}
+            setActiveMode={setActiveMode}
+          />
+        )}
+      </SafeAreaView>
+    </AuthProvider>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default CaptionGenerator;

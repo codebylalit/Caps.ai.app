@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ReelTubeSaver",
+    "name": "Caps.ai",
     "slug": "ReelTubeSaver",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,10 +19,16 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.heylalit.ReelTubeSaver"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "410fa0a2-99e4-4911-8a30-d5ab8f7b36a6"
+      }
     }
   }
 }
