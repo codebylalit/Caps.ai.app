@@ -10,10 +10,8 @@ const HomeScreen = ({ setActiveMode }) => {
   const { user, supabase } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [displayName, setDisplayName] = useState("");
-  const [localUser, setLocalUser] = useState(null);
   const {
     anonymousUsageCount,
-    incrementAnonymousUsage,
     MAX_ANONYMOUS_GENERATIONS,
   } = useUsageTracking(); // Add usage tracking hook
 
@@ -92,15 +90,6 @@ const HomeScreen = ({ setActiveMode }) => {
             <Text style={tw`text-3xl font-bold text-slate-800`}>
               {getGreeting()},
             </Text>
-            {/* {user && (
-              <TouchableOpacity onPress={handleLogout}>
-                <View
-                  style={tw`w-8 h-6 rounded-full bg-slate-200 mr-2 items-center justify-center`}
-                >
-                  <FontAwesome name="sign-out" size={16} color="orange" />
-                </View>
-              </TouchableOpacity>
-            )} */}
           </View>
           <Text style={tw`text-lg text-slate-600 leading-relaxed`}>
             Create perfect captions for your content with AI-powered suggestions

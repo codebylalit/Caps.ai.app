@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "Caps.ai",
-    "slug": "ReelTubeSaver",
+    "slug": "capsai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFF5E1"
     },
     "ios": {
       "supportsTablet": true
@@ -18,17 +18,19 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFF5E1"
       },
-      "package": "com.heylalit.ReelTubeSaver"
+      "package": "com.heylalit.ReelTubeSaver",
+      "fullscreen": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "410fa0a2-99e4-4911-8a30-d5ab8f7b36a6"
+        "projectId": "166464ff-5274-416e-ae5d-9b579bbc9c32"
       }
-    }
+    },
+    "owner": "heylalit"
   }
 }

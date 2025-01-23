@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SafeAreaView } from "react-native";
+import { SafeAreaView, StatusBar } from "react-native";
 import tw from "twrnc";
 import { AuthProvider } from "./authcontext";
 import HomeScreen from "./screens/home";
@@ -10,7 +10,11 @@ const CaptionGenerator = () => {
 
   return (
     <AuthProvider>
-      <SafeAreaView style={tw`flex-1 bg-slate-50`}>
+      <StatusBar hidden={true} />
+      <SafeAreaView
+        style={tw`flex-1 bg-slate-50`}
+        edges={["right", "left", "bottom"]}
+      >
         {activeMode === null ? (
           <HomeScreen setActiveMode={setActiveMode} />
         ) : (
