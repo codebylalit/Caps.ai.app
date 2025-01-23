@@ -4,12 +4,19 @@ import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import AuthScreen from "./auth";
 import { useAuth } from "../authcontext";
+import { useUsageTracking } from "./freecredits";
 
 const HomeScreen = ({ setActiveMode }) => {
- const { user, supabase } = useAuth();
- const [showAuth, setShowAuth] = useState(false);
- const [displayName, setDisplayName] = useState("");
+  const { user, supabase } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [localUser, setLocalUser] = useState(null);
+  const {
+    anonymousUsageCount,
+    incrementAnonymousUsage,
+    MAX_ANONYMOUS_GENERATIONS,
+  } = useUsageTracking(); // Add usage tracking hook
+
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -35,23 +42,22 @@ const HomeScreen = ({ setActiveMode }) => {
     fetchUserProfile();
   }, [user, supabase]);
 
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error signing out:", error.message);
+    }
+  };
 
- const handleLogout = async () => {
-   try {
-     const { error } = await supabase.auth.signOut();
-     if (error) throw error;
-   } catch (error) {
-     console.error("Error signing out:", error.message);
-   }
- };
+  const handleLogin = () => {
+    setShowAuth(true);
+  };
 
- const handleLogin = () => {
-   setShowAuth(true);
- };
-
- if (showAuth) {
-   return <AuthScreen onClose={() => setShowAuth(false)} />;
- }
+  if (showAuth) {
+    return <AuthScreen onClose={() => setShowAuth(false)} />;
+  }
 
   const getGreeting = () => {
     const currentHour = new Date().getHours();
@@ -59,7 +65,7 @@ const HomeScreen = ({ setActiveMode }) => {
     else if (currentHour < 18) return "Good afternoon";
     return "Good evening";
   };
- 
+
   return (
     <View style={tw`flex-1 p-6 bg-orange-50`}>
       {/* Top hashtag decorations */}
@@ -89,7 +95,7 @@ const HomeScreen = ({ setActiveMode }) => {
             {/* {user && (
               <TouchableOpacity onPress={handleLogout}>
                 <View
-                  style={tw`w-8 h-8 rounded-full bg-slate-100 mr-2 items-center justify-center`}
+                  style={tw`w-8 h-6 rounded-full bg-slate-200 mr-2 items-center justify-center`}
                 >
                   <FontAwesome name="sign-out" size={16} color="orange" />
                 </View>
@@ -186,8 +192,8 @@ const HomeScreen = ({ setActiveMode }) => {
           />
         </View>
       </View>
-      {!user && (
-        <View style={tw`mt-8`}>
+      {!user ? (
+        <View style={tw`mt-12`}>
           <Text style={tw`text-base text-slate-600 mb-4`}>
             Please log in to access personalized features:
           </Text>
@@ -196,6 +202,28 @@ const HomeScreen = ({ setActiveMode }) => {
             onPress={handleLogin}
           >
             <Text style={tw`text-white text-center font-bold`}>Log In</Text>
+          </TouchableOpacity>
+          <Text style={tw`text-xs text-slate-500 mt-2 text-center`}>
+            Credits Left: {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
+          </Text>
+        </View>
+      ) : (
+        <View style={tw`mt-14`}>
+          <Text style={tw`text-md top-14 text-center font-bold text-slate-800`}>
+            Welcome, {user.email.split("@")[0]}
+          </Text>
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={tw`flex-row items-center mt-18 flex-row p-2 justify-center items-center bg-orange-500 rounded-lg`}
+          >   
+              {/* Icon Container */}
+              <View style={tw`w-10 h-10 items-center justify-center`}>
+                <FontAwesome name="sign-out" size={20} color="white" />
+              </View>
+              {/* Text */}
+              <Text style={tw`text-white text-center font-bold`}>
+                Log Out
+              </Text>
           </TouchableOpacity>
         </View>
       )}
