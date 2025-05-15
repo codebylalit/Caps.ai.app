@@ -198,7 +198,7 @@ const HomeScreen = ({ setActiveMode }) => {
         </View>
       ) : (
         <View style={tw`mt-14`}>
-          <Text style={tw`text-md top-14 text-center font-bold text-slate-800`}>
+          <Text style={tw`text-base top-14 text-center font-bold text-slate-800`}>
             Welcome, {user.email.split("@")[0]}
           </Text>
           <TouchableOpacity

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,8 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../authcontext";
 
 const AuthScreen = ({ onClose }) => {
-  const { supabase, setUser } = useAuth();
-  const [authMethod, setAuthMethod] = useState("phone");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const { supabase, setUser, signInWithOtp, verifyOtp, otpLoading } = useAuth();
+  const [authMethod, setAuthMethod] = useState("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -66,156 +65,53 @@ const AuthScreen = ({ onClose }) => {
     }
   };
 
-  const handlePhoneSendCode = async () => {
-    if (!phoneNumber || phoneNumber.length !== 10) {
-      Alert.alert(
-        "Invalid Phone Number",
-        "Please enter a valid 10-digit phone number"
-      );
+  const handleSendCode = async () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address');
       return;
     }
 
-    setLoading(true);
     try {
-      const fullPhoneNumber = `+91${phoneNumber}`;
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: fullPhoneNumber,
-      });
-
+      const { error } = await signInWithOtp(email);
       if (error) throw error;
 
       setShowVerification(true);
       setResendTimer(30);
-      Alert.alert("Success", `Verification code sent to +91 ${phoneNumber}`);
+      Alert.alert('Success', `Verification code sent to ${email}`);
     } catch (error) {
-      console.error("Error sending code:", error);
-      Alert.alert(
-        "Error",
-        "Failed to send verification code. Please try again."
-      );
-    } finally {
-      setLoading(false);
+      console.error('Error sending code:', error);
+      Alert.alert('Error', 'Failed to send verification code. Please try again.');
     }
   };
 
   const handleVerifyCode = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      Alert.alert("Invalid Code", "Please enter the 6-digit verification code");
+      Alert.alert('Invalid Code', 'Please enter the 6-digit verification code');
       return;
     }
 
-    setLoading(true);
     try {
-      const fullPhoneNumber = `+91${phoneNumber}`;
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: fullPhoneNumber,
-        token: verificationCode,
-        type: "sms",
-      });
-
+      const { error } = await verifyOtp(email, verificationCode);
       if (error) throw error;
-
-      if (data?.user) {
-        await handleAuthSuccess(data.user);
-      }
+      onClose();
     } catch (error) {
-      console.error("Verification error:", error);
-      Alert.alert(
-        "Error",
-        "Invalid code or verification failed. Please try again."
-      );
-    } finally {
-      setLoading(false);
+      console.error('Verification error:', error);
+      Alert.alert('Error', 'Invalid code or verification failed. Please try again.');
     }
   };
 
-  const renderPhoneAuth = () =>
-    !showVerification ? (
-      <View>
-        <Text style={tw`text-base text-slate-600 mb-2`}>Phone Number</Text>
-        <View style={tw`bg-white rounded-lg flex-row items-center p-3 mb-4`}>
-          <Text style={tw`mr-2 text-slate-600 text-lg`}>+91</Text>
-          <TextInput
-            style={tw`flex-1 text-lg`}
-            placeholder="Enter 10-digit number"
-            keyboardType="number-pad"
-            maxLength={10}
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-          />
-        </View>
+  // Timer effect for resend cooldown
+  React.useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((current) => current - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
-        <TouchableOpacity
-          style={tw`p-4 bg-orange-500 rounded-lg ${
-            loading ? "opacity-50" : ""
-          }`}
-          onPress={handlePhoneSendCode}
-          disabled={loading}
-        >
-          <Text style={tw`text-white text-center font-bold text-lg`}>
-            {loading ? "Sending Code..." : "Send Verification Code"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    ) : (
-      <View>
-        <Text style={tw`text-base text-slate-600 mb-2`}>
-          Enter verification code sent to +91 {phoneNumber}
-        </Text>
-        <View style={tw`bg-white rounded-lg flex-row items-center p-3 mb-4`}>
-          <TextInput
-            style={tw`flex-1 text-lg text-center tracking-widest`}
-            placeholder="000000"
-            keyboardType="number-pad"
-            maxLength={6}
-            value={verificationCode}
-            onChangeText={setVerificationCode}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={tw`p-4 bg-orange-500 rounded-lg mb-4 ${
-            loading ? "opacity-50" : ""
-          }`}
-          onPress={handleVerifyCode}
-          disabled={loading}
-        >
-          <Text style={tw`text-white text-center font-bold text-lg`}>
-            {loading ? "Verifying..." : "Verify Code"}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={tw`flex-row justify-between items-center`}>
-          <TouchableOpacity
-            style={tw`p-4`}
-            onPress={() => {
-              setShowVerification(false);
-              setVerificationCode("");
-            }}
-          >
-            <Text style={tw`text-orange-500 text-center font-bold`}>
-              Change Phone Number
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={tw`p-4`}
-            onPress={handlePhoneSendCode}
-            disabled={resendTimer > 0 || loading}
-          >
-            <Text
-              style={tw`${
-                resendTimer > 0 ? "text-gray-400" : "text-orange-500"
-              } text-center font-bold`}
-            >
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-
-  const renderEmailAuth = () => (
+  const renderEmailPasswordAuth = () => (
     <View>
       <Text style={tw`text-base text-slate-600 mb-2`}>Email</Text>
       <View style={tw`bg-white rounded-lg p-3 mb-4`}>
@@ -226,6 +122,7 @@ const AuthScreen = ({ onClose }) => {
           autoCapitalize="none"
           value={email}
           onChangeText={setEmail}
+          editable={!loading}
         />
       </View>
 
@@ -237,13 +134,12 @@ const AuthScreen = ({ onClose }) => {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          editable={!loading}
         />
       </View>
 
       <TouchableOpacity
-        style={tw`p-4 bg-orange-500 rounded-lg mb-4 ${
-          loading ? "opacity-50" : ""
-        }`}
+        style={tw`p-4 bg-orange-500 rounded-lg mb-4 ${loading ? "opacity-50" : ""}`}
         onPress={handleEmailAuth}
         disabled={loading}
       >
@@ -262,21 +158,107 @@ const AuthScreen = ({ onClose }) => {
     </View>
   );
 
+  const renderEmailOtp = () => (
+    <View>
+      {!showVerification ? (
+        <>
+          <Text style={tw`text-base text-slate-600 mb-2`}>Email Address</Text>
+          <View style={tw`bg-white rounded-lg flex-row items-center p-3 mb-4`}>
+            <TextInput
+              style={tw`flex-1 text-lg`}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              editable={!otpLoading}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={tw`p-4 bg-orange-500 rounded-lg ${otpLoading ? "opacity-50" : ""}`}
+            onPress={handleSendCode}
+            disabled={otpLoading}
+          >
+            <Text style={tw`text-white text-center font-bold text-lg`}>
+              {otpLoading ? "Sending Code..." : "Send Verification Code"}
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={tw`text-base text-slate-600 mb-2`}>
+            Enter verification code sent to {email}
+          </Text>
+          <View style={tw`bg-white rounded-lg flex-row items-center p-3 mb-4`}>
+            <TextInput
+              style={tw`flex-1 text-lg text-center tracking-widest letter-spacing-2`}
+              placeholder="000000"
+              value={verificationCode}
+              onChangeText={(text) => {
+                // Only allow digits
+                const cleaned = text.replace(/[^0-9]/g, '');
+                setVerificationCode(cleaned);
+              }}
+              editable={!otpLoading}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoComplete="sms-otp"
+              textContentType="oneTimeCode"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={tw`p-4 bg-orange-500 rounded-lg mb-4 ${otpLoading ? "opacity-50" : ""}`}
+            onPress={handleVerifyCode}
+            disabled={otpLoading}
+          >
+            <Text style={tw`text-white text-center font-bold text-lg`}>
+              {otpLoading ? "Verifying..." : "Verify Code"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={tw`flex-row justify-between items-center`}>
+            <TouchableOpacity
+              style={tw`p-4`}
+              onPress={() => {
+                setShowVerification(false);
+                setVerificationCode("");
+              }}
+            >
+              <Text style={tw`text-orange-500 text-center font-bold`}>
+                Change Email
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={tw`p-4`}
+              onPress={handleSendCode}
+              disabled={resendTimer > 0 || otpLoading}
+            >
+              <Text
+                style={tw`${
+                  resendTimer > 0 ? "text-gray-400" : "text-orange-500"
+                } text-center font-bold`}
+              >
+                {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </View>
+  );
+
   return (
     <ScrollView style={tw`flex-1 bg-orange-50`}>
       <View style={tw`p-6 mt-16`}>
         <View style={tw`flex-row justify-between items-center mb-8`}>
           <Text style={tw`text-3xl font-bold text-slate-800`}>
-            {showVerification
-              ? "Verify Phone"
-              : isSignUp
-              ? "Sign Up"
-              : "Sign In"}
+            {showVerification ? "Verify Email" : isSignUp ? "Sign Up" : "Sign In"}
           </Text>
           <TouchableOpacity onPress={onClose}>
-            <View
-              style={tw`w-8 h-8 rounded-full bg-slate-100 items-center justify-center`}
-            >
+            <View style={tw`w-8 h-8 rounded-full bg-slate-100 items-center justify-center`}>
               <FontAwesome name="times" size={16} color="#FB923C" />
             </View>
           </TouchableOpacity>
@@ -287,20 +269,6 @@ const AuthScreen = ({ onClose }) => {
           <View style={tw`flex-row mb-6`}>
             <TouchableOpacity
               style={tw`flex-1 p-4 rounded-l-lg ${
-                authMethod === "phone" ? "bg-orange-500" : "bg-white"
-              }`}
-              onPress={() => setAuthMethod("phone")}
-            >
-              <Text
-                style={tw`text-center font-bold ${
-                  authMethod === "phone" ? "text-white" : "text-slate-600"
-                }`}
-              >
-                Phone
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={tw`flex-1 p-4 rounded-r-lg ${
                 authMethod === "email" ? "bg-orange-500" : "bg-white"
               }`}
               onPress={() => setAuthMethod("email")}
@@ -310,14 +278,28 @@ const AuthScreen = ({ onClose }) => {
                   authMethod === "email" ? "text-white" : "text-slate-600"
                 }`}
               >
-                Email
+                Email & Password
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={tw`flex-1 p-4 rounded-r-lg ${
+                authMethod === "otp" ? "bg-orange-500" : "bg-white"
+              }`}
+              onPress={() => setAuthMethod("otp")}
+            >
+              <Text
+                style={tw`text-center font-bold ${
+                  authMethod === "otp" ? "text-white" : "text-slate-600"
+                }`}
+              >
+                Email OTP
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* Auth Content */}
-        {authMethod === "phone" ? renderPhoneAuth() : renderEmailAuth()}
+        {authMethod === "email" ? renderEmailPasswordAuth() : renderEmailOtp()}
       </View>
     </ScrollView>
   );

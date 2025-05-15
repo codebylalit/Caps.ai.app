@@ -7,10 +7,15 @@ import {
   ScrollView,
   Linking,
   AppState,
+  Platform,
 } from "react-native";
 import tw from "twrnc";
+import { RAZORPAY_KEY_ID, createRazorpayOrder, verifyPayment } from '../config/razorpay';
 
-const MERCHANT_UPI_ID = "9116464532@axl";
+let RazorpayCheckout;
+if (Platform.OS === 'android') {
+  RazorpayCheckout = require('react-native-razorpay').default;
+}
 
 const creditPackages = [
   {
@@ -41,21 +46,10 @@ const creditPackages = [
 const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
-  const [currentTransactionId, setCurrentTransactionId] = useState(null);
 
   useEffect(() => {
     fetchTransactions();
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active" && currentTransactionId) {
-        verifyPaymentOnReturn(currentTransactionId);
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [currentTransactionId]);
+  }, []);
 
   const fetchTransactions = async () => {
     try {
@@ -77,48 +71,16 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
     return "TXN_" + Date.now() + "_" + Math.random().toString(36).substring(7);
   };
 
-  const verifyPaymentOnReturn = async (transactionId) => {
-    try {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("transaction_id", transactionId)
-        .eq("status", "pending")
-        .single();
+  const handlePayment = async (packageDetails) => {
+    if (loading) return;
 
-      if (error || !data) {
-        console.log("No pending transaction found:", transactionId);
-        return;
-      }
-
-      Alert.alert(
-        "Payment Verification",
-        "Did you complete the payment?",
-        [
-          {
-            text: "No",
-            onPress: () => handlePaymentStatus(transactionId, "failed"),
-            style: "cancel",
-          },
-          {
-            text: "Yes",
-            onPress: () => handlePaymentStatus(transactionId, "success"),
-          },
-        ],
-        { cancelable: false }
-      );
-    } catch (error) {
-      console.error("Error verifying payment:", error);
-    } finally {
-      setCurrentTransactionId(null);
-    }
-  };
-
-  const initiateUPIPayment = async (packageDetails) => {
+    setLoading(true);
     const transactionId = generateTransactionId();
-    const transactionNote = `${packageDetails.credits} Credits Purchase`;
 
     try {
+      console.log("Initiating payment for package:", packageDetails);
+
+      // First create a pending transaction in your database
       const { error: paymentInitError } = await supabase
         .from("payments")
         .insert({
@@ -130,200 +92,225 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
           credits_added: false,
         });
 
-      if (paymentInitError) throw paymentInitError;
-
-      const upiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=Caps%20Ai&tn=${encodeURIComponent(
-        transactionNote
-      )}&am=${packageDetails.price}&tr=${transactionId}&cu=INR`;
-
-      const canOpen = await Linking.canOpenURL(upiUrl);
-
-      if (!canOpen) {
-        throw new Error("No UPI app found");
+      if (paymentInitError) {
+        console.error("Error creating pending transaction:", paymentInitError);
+        throw paymentInitError;
       }
 
-      return { upiUrl, transactionId };
+      console.log("Creating Razorpay order...");
+      const amount = Math.round(packageDetails.price * 100); // Convert to paise and ensure it's an integer
+      const orderData = await createRazorpayOrder(amount);
+      console.log("Order created successfully:", orderData);
+
+      if (!orderData || !orderData.id) {
+        throw new Error('Could not create order');
+      }
+      
+      const options = {
+        description: `${packageDetails.credits} Credits Purchase`,
+        image: 'YOUR_LOGO_URL',
+        currency: 'INR',
+        key: RAZORPAY_KEY_ID,
+        amount: amount.toString(),
+        name: 'Caps.ai',
+        order_id: orderData.id,
+        prefill: {
+          email: user.email || '',
+          contact: user.phone || '',
+          name: user.name || ''
+        },
+        theme: { color: '#53a20e' },
+        retry: {
+          enabled: true,
+          max_count: 3
+        }
+      };
+
+      console.log("Opening Razorpay checkout with options:", options);
+
+      const paymentData = await new Promise((resolve, reject) => {
+        RazorpayCheckout.open(options).then((data) => {
+          console.log('Payment success:', data);
+          resolve(data);
+        }).catch((error) => {
+          console.error('Payment error:', error);
+          reject(error);
+        });
+      });
+
+      // If we get here, payment was successful
+      await handlePaymentSuccess(transactionId, packageDetails.credits, paymentData);
+
     } catch (error) {
-      console.error("Error creating UPI payment:", error);
-      throw error;
+      console.error("Payment error details:", {
+        message: error?.message,
+        code: error?.code,
+        description: error?.description,
+        source: error?.source,
+        step: error?.step,
+        reason: error?.reason,
+        metadata: error?.metadata
+      });
+
+      await handlePaymentFailure(transactionId, error);
+
+      let errorMessage = "Unable to process payment. Please try again.";
+      if (error?.description) {
+        errorMessage = error.description;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert(
+        "Payment Failed",
+        errorMessage,
+        [{ text: "OK", onPress: () => console.log("Payment error acknowledged by user") }]
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
- const handlePayment = async (packageDetails) => {
-   if (loading) return;
+  const handlePaymentSuccess = async (transactionId, creditsToAdd, paymentData) => {
+    try {
+      console.log("Processing successful payment:", {
+        transactionId,
+        creditsToAdd,
+        paymentData
+      });
 
-   setLoading(true);
-   try {
-     // First, cancel any existing pending transactions
-     if (currentTransactionId) {
-       await supabase
-         .from("payments")
-         .update({ status: "cancelled" })
-         .eq("transaction_id", currentTransactionId)
-         .eq("status", "pending");
+      // First verify the payment
+      console.log("Verifying payment signature...");
+      const isVerified = await verifyPayment(paymentData);
+      
+      if (!isVerified) {
+        console.error("Payment verification failed");
+        throw new Error("Payment verification failed. Please contact support if amount was deducted.");
+      }
+      
+      console.log("Payment verification successful");
 
-       setCurrentTransactionId(null);
-     }
-
-     // Then initiate the new payment
-     const { upiUrl, transactionId } = await initiateUPIPayment(packageDetails);
-     setCurrentTransactionId(transactionId);
-     await Linking.openURL(upiUrl);
-     await fetchTransactions();
-   } catch (error) {
-     console.error("Payment initialization failed:", error);
-     Alert.alert(
-       "Payment Failed",
-       "Unable to initialize UPI payment. Please ensure you have a UPI app installed."
-     );
-   } finally {
-     setLoading(false);
-   }
- };
-
-const handlePaymentStatus = async (transactionId, status) => {
-  setLoading(true);
-  try {
-    console.log(
-      "Starting payment verification for transaction:",
-      transactionId
-    );
-
-    // First check if transaction exists and hasn't been processed
-    const { data: transaction, error: txError } = await supabase
-      .from("payments")
-      .select("*")
-      .eq("transaction_id", transactionId)
-      .single();
-
-    console.log("Transaction lookup result:", { transaction, error: txError });
-
-    if (txError) {
-      console.error("Transaction lookup failed:", txError);
-      Alert.alert("Error", "Could not find transaction");
-      return;
-    }
-
-    if (transaction.status === "success" && transaction.credits_added) {
-      console.log("Transaction already processed, stopping here");
-      Alert.alert("Info", "Payment was already processed");
-      return;
-    }
-
-    if (status === "success") {
-      // Step 1: Update payment status first
-      console.log("Updating payment status to success");
-      const { data: statusData, error: statusError } = await supabase
+      // Update payment status
+      const { error: statusError } = await supabase
         .from("payments")
-        .update({ status: "success" })
-        .eq("transaction_id", transactionId)
-        .eq("status", "pending")
-        .select();
-
-      console.log("Status update result:", { statusData, error: statusError });
+        .update({ 
+          status: "success",
+          razorpay_payment_id: paymentData.razorpay_payment_id,
+          razorpay_order_id: paymentData.razorpay_order_id,
+          razorpay_signature: paymentData.razorpay_signature,
+          verified: true
+        })
+        .eq("transaction_id", transactionId);
 
       if (statusError) {
-        throw new Error(
-          `Failed to update payment status: ${statusError.message}`
-        );
+        console.error("Error updating payment status:", statusError);
+        throw statusError;
       }
 
-      // Step 2: Get current user credits
-      console.log("Fetching current user credits");
+      // Get current user credits
       const { data: userData, error: userError } = await supabase
         .from("profiles")
         .select("credits")
         .eq("id", user.id)
         .single();
 
-      console.log("User credits fetch result:", { userData, error: userError });
-
       if (userError) {
-        throw new Error(`Failed to get user credits: ${userError.message}`);
+        console.error("Error fetching user credits:", userError);
+        throw userError;
       }
 
-      // Step 3: Calculate new credits total
+      // Calculate and update new credits total
       const currentCredits = userData.credits || 0;
-      const creditsToAdd = transaction.credits;
       const newTotal = currentCredits + creditsToAdd;
 
-      console.log("Credit calculation:", {
+      console.log("Updating user credits:", {
         currentCredits,
         creditsToAdd,
-        newTotal,
-        userId: user.id,
+        newTotal
       });
 
-      // Step 4: Update user credits
-      console.log("Updating user credits");
-      const { data: updateData, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from("profiles")
         .update({ credits: newTotal })
-        .eq("id", user.id)
-        .select();
-
-      console.log("Credits update result:", { updateData, error: updateError });
+        .eq("id", user.id);
 
       if (updateError) {
-        throw new Error(
-          `Failed to update user credits: ${updateError.message}`
-        );
+        console.error("Error updating user credits:", updateError);
+        throw updateError;
       }
 
-      // Step 5: Mark credits as added
-      console.log("Marking credits as added");
-      const { data: finalizeData, error: finalizeError } = await supabase
+      // Mark credits as added
+      await supabase
         .from("payments")
         .update({ credits_added: true })
-        .eq("transaction_id", transactionId)
-        .select();
+        .eq("transaction_id", transactionId);
 
-      console.log("Finalize result:", { finalizeData, error: finalizeError });
-
-      if (finalizeError) {
-        throw new Error(`Failed to finalize payment: ${finalizeError.message}`);
-      }
-
-      // Step 6: Refresh UI
-      console.log("Refreshing UI data");
+      // Refresh UI
       await Promise.all([fetchUserCredits(), fetchTransactions()]);
 
       Alert.alert(
         "Success",
-        `${creditsToAdd} credits have been added to your account`
+        `${creditsToAdd} credits have been added to your account`,
+        [
+          {
+            text: "OK",
+            onPress: () => console.log("Success acknowledged by user")
+          }
+        ]
       );
-    } else {
-      // Handle failed payment
-      console.log("Marking payment as failed");
-      const { error: failureError } = await supabase
-        .from("payments")
-        .update({ status: "failed" })
-        .eq("transaction_id", transactionId)
-        .eq("status", "pending");
-
-      if (failureError) {
-        throw new Error(
-          `Failed to mark payment as failed: ${failureError.message}`
-        );
+    } catch (error) {
+      console.error("Error processing successful payment:", error);
+      
+      // Update payment status to failed if verification fails
+      if (error.message.includes("verification failed")) {
+        await supabase
+          .from("payments")
+          .update({ 
+            status: "failed",
+            error_description: error.message,
+            verified: false
+          })
+          .eq("transaction_id", transactionId);
       }
-
-      await fetchTransactions();
+      
       Alert.alert(
-        "Payment Failed",
-        "Please try again or contact support if the issue persists"
+        "Error",
+        error.message || "Payment was successful but credits could not be added. Please contact support.",
+        [
+          {
+            text: "OK",
+            onPress: () => console.log("Credit addition error acknowledged by user")
+          }
+        ]
       );
     }
-  } catch (error) {
-    console.error("Payment processing error:", error);
-    Alert.alert(
-      "Error Processing Payment",
-      "Please check if credits were added and contact support if there's an issue."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-  
+  };
+
+  const handlePaymentFailure = async (transactionId, error) => {
+    try {
+      console.log("Handling payment failure:", {
+        transactionId,
+        errorDetails: error
+      });
+
+      await supabase
+        .from("payments")
+        .update({ 
+          status: "failed",
+          error_code: error?.code,
+          error_description: error?.description,
+          error_source: error?.source,
+          error_step: error?.step,
+          error_reason: error?.reason
+        })
+        .eq("transaction_id", transactionId);
+      
+      await fetchTransactions();
+    } catch (error) {
+      console.error("Error handling payment failure:", error);
+    }
+  };
+
   return (
     <ScrollView style={tw`flex-1 px-4 py-3`}>
       <View style={tw`bg-white rounded-2xl p-6 shadow-sm mb-6`}>
@@ -338,7 +325,7 @@ const handlePaymentStatus = async (transactionId, status) => {
       <Text style={tw`text-lg font-semibold text-slate-800 mb-4`}>
         Buy Credits
       </Text>
-      <View style={tw`space-y-4 mb-6`}>
+      <View style={tw`mb-6`}>
         {creditPackages.map((pkg, index) => {
           // Calculate original price and savings for packages with discount
           const originalPrice = pkg.discount ? pkg.price * 2 : pkg.price;
@@ -358,12 +345,12 @@ const handlePaymentStatus = async (transactionId, status) => {
                   <Text style={tw`text-lg font-semibold text-slate-800`}>
                     {pkg.credits} Credits
                   </Text> 
-                  <View style={tw`flex-row items-center space-x-2`}>
+                  <View style={tw`flex-row items-center`}>
                     <Text style={tw`text-base text-slate-600`}>
                       ₹{pkg.price}
                     </Text>
                     {pkg.discount && (
-                      <Text style={tw`text-sm ml-1 text-slate-400 line-through`}>
+                      <Text style={tw`text-sm text-slate-400 line-through ml-2`}>
                         ₹{originalPrice}
                       </Text>
                     )}
@@ -398,7 +385,7 @@ const handlePaymentStatus = async (transactionId, status) => {
       <Text style={tw`text-lg font-semibold text-slate-800 mb-4`}>
         Transaction History
       </Text>
-      <View style={tw`space-y-4`}>
+      <View style={tw``}>
         {transactions.length === 0 ? (
           <Text style={tw`text-slate-500 text-center py-4`}>
             No transactions yet

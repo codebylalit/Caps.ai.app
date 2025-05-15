@@ -3,18 +3,12 @@ import { View, TouchableOpacity, Text, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import { createClient } from "@supabase/supabase-js";
 import AuthScreen from "./auth";
 import UserDashboard from "./dashboard";
 import GeneratorContent from "./generatorlogic";
 import { useAuth } from "../authcontext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useUsageTracking } from "./freecredits";
-
-const supabase = createClient(
-  "https://dmnpjqczfykzvrdjzodt.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtbnBqcWN6ZnlrenZyZGp6b2R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwMjcxNzUsImV4cCI6MjA1MjYwMzE3NX0.l8zF00ZssGO7HDJnPMHpFrFyTRkIDU3JHQeESe_OyPk"
-);
 
 export const API_CONFIG = {
   BASE_URL:
@@ -23,7 +17,7 @@ export const API_CONFIG = {
 };
 
 const GeneratorScreen = ({ activeMode, setActiveMode }) => {
-  const { user, supabase } = useAuth();
+  const { user, userProfile, supabase, fetchUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState("generator");
   const [showAuth, setShowAuth] = useState(false);
   const [history, setHistory] = useState([]);
@@ -32,43 +26,18 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
     anonymousUsageCount,
     incrementAnonymousUsage,
     MAX_ANONYMOUS_GENERATIONS,
-  } = useUsageTracking(); // Add usage tracking hook
+  } = useUsageTracking();
 
   useEffect(() => {
-    if (user) {
-      fetchUserCredits();
+    if (user && userProfile) {
+      setUserCredits(userProfile.credits);
       fetchHistory();
     }
-  }, [user]);
-
-  const fetchUserCredits = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("credits")
-        .eq("id", user.id)
-        .single();
-
-      if (error) throw error;
-
-      if (!data || data.credits === null) {
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({ credits: 10 })
-          .eq("id", user.id);
-
-        if (updateError) throw updateError;
-        setUserCredits(10);
-      } else {
-        setUserCredits(data.credits);
-      }
-    } catch (error) {
-      console.error("Error fetching/initializing credits:", error);
-      setUserCredits(0);
-    }
-  };
+  }, [user, userProfile]);
 
   const fetchHistory = async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from("caption_history")
@@ -84,19 +53,25 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
   };
 
   const deductCredit = async () => {
+    if (!user || !userProfile) return false;
+    
     try {
+      const newCredits = userProfile.credits - 1;
       const { data, error } = await supabase
         .from("profiles")
-        .update({ credits: userCredits - 1 })
+        .update({ credits: newCredits })
         .eq("id", user.id)
         .select()
         .single();
 
       if (error) throw error;
-      setUserCredits(data.credits);
+      
+      await fetchUserProfile(user.id);
+      setUserCredits(newCredits);
+      return true;
     } catch (error) {
       console.error("Error deducting credit:", error);
-      throw error;
+      return false;
     }
   };
 

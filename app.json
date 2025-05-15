@@ -13,15 +13,22 @@
       "backgroundColor": "#FFF5E1"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.caps.ai",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for payments"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF5E1"
       },
-      "package": "com.heylalit.ReelTubeSaver",
-      "fullscreen": true
+      "package": "com.caps.ai",
+      "fullscreen": true,
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +38,7 @@
         "projectId": "166464ff-5274-416e-ae5d-9b579bbc9c32"
       }
     },
-    "owner": "heylalit"
+    "owner": "heylalit",
+    "scheme": "caps"
   }
 }
