@@ -1,86 +1,75 @@
-export const RAZORPAY_KEY_ID = 'rzp_test_NrIiKYuezOw2aL';
+export const RAZORPAY_KEY_ID = 'rzp_test_81EDjx64a4TpUr';
 
 const SUPABASE_PROJECT_REF = 'zkojmfnmjqqvbrtbteyu';
 const SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inprb2ptZm5tanFxdmJydGJ0ZXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMTg0MjIsImV4cCI6MjA2Mjc5NDQyMn0.uXfP4z5Z-5PikE84xwEUXP9BqIgt1sZXl_-mvz7n_ZE';
 
 export const createRazorpayOrder = async (amount) => {
-  try {
-    console.log('Creating order with amount:', amount);
-    
-    // Create AbortController with 30 second timeout instead of 60
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const finalAmount = Math.round(amount); // assuming amount is in INR
+  console.log('Creating Razorpay order for amount (in paise):', finalAmount);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+
+  try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/super-worker`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ 
-        amount: Math.round(amount), // Ensure amount is an integer
-        timestamp: new Date().toISOString() 
+      body: JSON.stringify({
+        amount: finalAmount,
+        timestamp: new Date().toISOString(),
+        action: 'create_order',
       }),
-      signal: controller.signal
+      signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-    
-    let data;
-    try {
-      const text = await response.text();
-      console.log('Raw response:', text);
-      
-      if (!text) {
-        throw new Error('Empty response from server');
-      }
-      
-      data = JSON.parse(text);
-      console.log('Parsed response:', data);
-      
-    } catch (parseError) {
-      console.error('Failed to parse response:', parseError);
-      throw new Error(`Invalid response from server: ${parseError.message}`);
+
+    const rawText = await response.text();
+    console.log('Raw response:', rawText);
+
+    if (!rawText) {
+      throw new Error('Empty response from server');
     }
-    
+
+    const data = JSON.parse(rawText);
+
     if (!response.ok || data.error) {
-      console.error('Error response:', data);
-      
-      // Handle specific error types
-      if (data.type === 'razorpay_error') {
-        throw new Error(`Razorpay error: ${data.error}`);
-      } else if (data.type === 'server_error') {
-        throw new Error(`Server error: ${data.error}`);
-      } else {
-        throw new Error(data.error || 'Failed to create order');
-      }
+      const errorMsg = data?.error || 'Failed to create order';
+      const errorType = data?.type || 'unknown_error';
+      throw new Error(`${errorType}: ${errorMsg}`);
     }
-    
+
     if (!data.id) {
-      console.error('Invalid order response:', data);
       throw new Error('Invalid order response: missing order ID');
     }
-    
+
+    console.log('Successfully created Razorpay order:', data.id);
     return data;
-    
+
   } catch (error) {
+    clearTimeout(timeoutId);
+
     if (error.name === 'AbortError') {
-      console.error('Request timeout error:', error);
-      throw new Error('Request timed out after 30 seconds. Please check your internet connection and try again.');
+      console.error('Timeout error:', error);
+      throw new Error('Server timeout. Please try again.');
     }
-    
+
+    if (
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('Network request failed')
+    ) {
+      throw new Error('Network error. Please check your internet connection.');
+    }
+
     console.error('Error creating Razorpay order:', error);
-    console.error('Full error details:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      response: error.response?.data
-    });
-    
-    throw error; // Rethrow the error to be handled by the caller
+    throw new Error(error.message || 'Unexpected error creating Razorpay order.');
   }
 };
+
 
 export const verifyPayment = async (paymentData) => {
   try {

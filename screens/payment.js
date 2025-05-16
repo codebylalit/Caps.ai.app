@@ -8,13 +8,20 @@ import {
   Linking,
   AppState,
   Platform,
+  BackHandler,
+  NativeEventEmitter,
+  NativeModules
 } from "react-native";
 import tw from "twrnc";
 import { RAZORPAY_KEY_ID, createRazorpayOrder, verifyPayment } from '../config/razorpay';
+import RazorpayService from '../src/services/razorpay.ts';
+import RazorpayButton from '../components/RazorpayButton';
 
 let RazorpayCheckout;
+let razorpayEvents;
 if (Platform.OS === 'android') {
   RazorpayCheckout = require('react-native-razorpay').default;
+  razorpayEvents = new NativeEventEmitter(NativeModules.RazorpayEventEmitter);
 }
 
 const creditPackages = [
@@ -49,7 +56,35 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+    
+    // Add back handler for Android
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (loading) {
+        return true;
+      }
+      return false;
+    });
+
+    // Setup Razorpay event listeners
+    let paymentSuccessListener;
+    let paymentErrorListener;
+    let externalWalletListener;
+
+    if (Platform.OS === 'android') {
+      paymentSuccessListener = razorpayEvents.addListener('Razorpay::PAYMENT_SUCCESS', handlePaymentSuccess);
+      paymentErrorListener = razorpayEvents.addListener('Razorpay::PAYMENT_ERROR', handlePaymentError);
+      externalWalletListener = razorpayEvents.addListener('Razorpay::EXTERNAL_WALLET_SELECTED', handleExternalWallet);
+    }
+
+    return () => {
+      backHandler.remove();
+      if (Platform.OS === 'android') {
+        paymentSuccessListener?.remove();
+        paymentErrorListener?.remove();
+        externalWalletListener?.remove();
+      }
+    };
+  }, [loading]);
 
   const fetchTransactions = async () => {
     try {
@@ -71,16 +106,46 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
     return "TXN_" + Date.now() + "_" + Math.random().toString(36).substring(7);
   };
 
+  const handleExternalWallet = (data) => {
+    console.log('External Wallet Selected:', data);
+  };
+
+  const handlePaymentError = async (error) => {
+    console.error("Payment error details:", {
+      code: error?.code,
+      description: error?.description,
+      source: error?.source,
+      step: error?.step,
+      reason: error?.reason,
+      metadata: error?.metadata
+    });
+
+    let errorMessage = "Unable to process payment. Please try again.";
+    if (error?.description) {
+      errorMessage = error.description;
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+
+    if (error.code !== 0) { // Don't show error for user cancellation
+      Alert.alert(
+        "Payment Failed",
+        errorMessage,
+        [{ text: "OK" }]
+      );
+    }
+  };
+
   const handlePayment = async (packageDetails) => {
     if (loading) return;
-
+  
     setLoading(true);
     const transactionId = generateTransactionId();
-
+  
     try {
       console.log("Initiating payment for package:", packageDetails);
-
-      // First create a pending transaction in your database
+  
+      // Create a pending transaction in the database
       const { error: paymentInitError } = await supabase
         .from("payments")
         .insert({
@@ -91,80 +156,125 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
           status: "pending",
           credits_added: false,
         });
-
+  
       if (paymentInitError) {
         console.error("Error creating pending transaction:", paymentInitError);
         throw paymentInitError;
       }
+  
+      // Create Razorpay order with amount in paise
+      const amountInPaise = Math.round(packageDetails.price * 100);
+      console.log("Creating Razorpay order with amount (in paise):", amountInPaise);
+      
+      const orderData = await RazorpayService.createOrder({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: transactionId,
+        notes: {
+          credits: packageDetails.credits.toString(),
+          user_id: user.id
+        }
+      });
 
-      console.log("Creating Razorpay order...");
-      const amount = Math.round(packageDetails.price * 100); // Convert to paise and ensure it's an integer
-      const orderData = await createRazorpayOrder(amount);
+      if (!orderData?.id) {
+        throw new Error("Failed to create Razorpay order: No order ID returned");
+      }
+
       console.log("Order created successfully:", orderData);
 
-      if (!orderData || !orderData.id) {
-        throw new Error('Could not create order');
-      }
-      
-      const options = {
-        description: `${packageDetails.credits} Credits Purchase`,
-        image: 'YOUR_LOGO_URL',
+      // Initialize payment
+      const paymentResponse = await RazorpayService.initiatePayment({
+        amount: amountInPaise,
+        orderId: orderData.id,
         currency: 'INR',
-        key: RAZORPAY_KEY_ID,
-        amount: amount.toString(),
-        name: 'Caps.ai',
-        order_id: orderData.id,
-        prefill: {
-          email: user.email || '',
-          contact: user.phone || '',
-          name: user.name || ''
-        },
-        theme: { color: '#53a20e' },
-        retry: {
-          enabled: true,
-          max_count: 3
-        }
-      };
-
-      console.log("Opening Razorpay checkout with options:", options);
-
-      const paymentData = await new Promise((resolve, reject) => {
-        RazorpayCheckout.open(options).then((data) => {
-          console.log('Payment success:', data);
-          resolve(data);
-        }).catch((error) => {
-          console.error('Payment error:', error);
-          reject(error);
-        });
+        description: `${packageDetails.credits} Credits Purchase`,
+        email: user.email,
+        contact: user.phone,
+        name: user.name
       });
 
-      // If we get here, payment was successful
-      await handlePaymentSuccess(transactionId, packageDetails.credits, paymentData);
+      console.log("Payment successful:", paymentResponse);
 
-    } catch (error) {
-      console.error("Payment error details:", {
-        message: error?.message,
-        code: error?.code,
-        description: error?.description,
-        source: error?.source,
-        step: error?.step,
-        reason: error?.reason,
-        metadata: error?.metadata
+      // Verify the payment
+      const isVerified = await RazorpayService.verifyPayment({
+        razorpay_payment_id: paymentResponse.razorpay_payment_id,
+        razorpay_order_id: paymentResponse.razorpay_order_id,
+        razorpay_signature: paymentResponse.razorpay_signature,
+        transaction_id: transactionId
       });
 
-      await handlePaymentFailure(transactionId, error);
-
-      let errorMessage = "Unable to process payment. Please try again.";
-      if (error?.description) {
-        errorMessage = error.description;
-      } else if (error?.message) {
-        errorMessage = error.message;
+      if (!isVerified) {
+        throw new Error("Payment verification failed");
       }
+
+      // Update payment status
+      await supabase
+        .from("payments")
+        .update({ 
+          status: "success",
+          razorpay_payment_id: paymentResponse.razorpay_payment_id,
+          razorpay_order_id: paymentResponse.razorpay_order_id,
+          razorpay_signature: paymentResponse.razorpay_signature,
+          verified: true
+        })
+        .eq("transaction_id", transactionId);
+
+      // Get current user credits
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (userError) {
+        throw userError;
+      }
+
+      // Update user credits
+      const currentCredits = userData.credits || 0;
+      const newTotal = currentCredits + packageDetails.credits;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ credits: newTotal })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Mark credits as added
+      await supabase
+        .from("payments")
+        .update({ credits_added: true })
+        .eq("transaction_id", transactionId);
+
+      // Refresh UI
+      await Promise.all([fetchUserCredits(), fetchTransactions()]);
 
       Alert.alert(
+        "Success",
+        `${packageDetails.credits} credits have been added to your account`,
+        [{ text: "OK" }]
+      );
+  
+    } catch (error) {
+      console.error("Payment error:", error);
+      
+      // Update payment status to failed
+      await supabase
+        .from("payments")
+        .update({ 
+          status: "failed",
+          error_description: error.message,
+          verified: false
+        })
+        .eq("transaction_id", transactionId);
+      
+      Alert.alert(
         "Payment Failed",
-        errorMessage,
-        [{ text: "OK", onPress: () => console.log("Payment error acknowledged by user") }]
+        error.message || "Unable to process payment. Please try again.",
+        [{ text: "OK" }]
       );
     } finally {
       setLoading(false);
@@ -179,12 +289,11 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
         paymentData
       });
 
-      // First verify the payment
+      // Verify payment signature
       console.log("Verifying payment signature...");
-      const isVerified = await verifyPayment(paymentData);
+      const isVerified = await RazorpayService.verifyPayment(paymentData);
       
       if (!isVerified) {
-        console.error("Payment verification failed");
         throw new Error("Payment verification failed. Please contact support if amount was deducted.");
       }
       
@@ -311,6 +420,83 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
     }
   };
 
+  const fetchWithTimeout = async (url, options, timeout = 30000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    }
+  };
+
+  const handleSubscriptionSuccess = async (plan) => {
+    try {
+      setLoading(true);
+
+      // Get the package details based on the plan
+      const selectedPackage = creditPackages.find(pkg => pkg.credits === parseInt(plan));
+      if (!selectedPackage) {
+        throw new Error('Invalid credit package');
+      }
+
+      // Get current user credits
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (userError) {
+        console.error("Error fetching user credits:", userError);
+        throw userError;
+      }
+
+      // Calculate and update new credits total
+      const currentCredits = userData.credits || 0;
+      const newTotal = currentCredits + selectedPackage.credits;
+
+      // Update user credits
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ credits: newTotal })
+        .eq("id", user.id);
+
+      if (updateError) {
+        console.error("Error updating user credits:", updateError);
+        throw updateError;
+      }
+
+      // Refresh data
+      await Promise.all([fetchUserCredits(), fetchTransactions()]);
+
+      Alert.alert(
+        "Success",
+        `${selectedPackage.credits} credits have been added to your account`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("Error processing successful payment:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to add credits to your account. Please contact support.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ScrollView style={tw`flex-1 px-4 py-3`}>
       <View style={tw`bg-white rounded-2xl p-6 shadow-sm mb-6`}>
@@ -337,7 +523,11 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits }) => {
               style={tw`bg-white p-4 rounded-xl shadow-sm m-1 ${
                 pkg.popular ? "border-2 border-orange-500" : ""
               }`}
-              onPress={() => handlePayment(pkg)}
+              onPress={() => {
+                if (!loading) {
+                  handlePayment(pkg);
+                }
+              }}
               disabled={loading}
             >
               <View style={tw`flex-row justify-between items-center`}>

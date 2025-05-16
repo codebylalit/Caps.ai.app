@@ -4,8 +4,8 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Add custom configuration here if needed
-config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
+// Add TypeScript and JavaScript extensions
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'ts', 'tsx', 'mjs', 'cjs'];
 
 // Add URL polyfill configuration
 config.resolver.extraNodeModules = {

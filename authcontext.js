@@ -114,12 +114,17 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      setLoading(true);
+      // Immediately clear user state
       setUser(null);
       setUserProfile(null);
+      
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
       console.error('Error signing out:', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,14 +133,19 @@ export const AuthProvider = ({ children }) => {
     checkUser();
     
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setLoading(true);
       
-      if (currentUser) {
-        await fetchUserProfile(currentUser.id);
-      } else {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
         setUserProfile(null);
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        
+        if (currentUser) {
+          await fetchUserProfile(currentUser.id);
+        }
       }
       
       setLoading(false);
@@ -148,6 +158,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkUser = async () => {
     try {
+      setLoading(true);
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
       
@@ -159,6 +170,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error checking auth state:', error.message);
+      // Clear user state on error
+      setUser(null);
+      setUserProfile(null);
     } finally {
       setLoading(false);
     }
