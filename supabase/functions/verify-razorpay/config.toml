@@ -1,0 +1,10 @@
+[build]
+command = ""
+
+[deploy]
+allowed_imports = ["https://deno.land/std@0.177.0/http/server.ts", "https://esm.sh/@supabase/supabase-js@2.7.1", "https://deno.land/std@0.177.0/crypto/mod.ts"]
+
+[env]
+RAZORPAY_KEY_SECRET = "your_razorpay_secret_key"
+SUPABASE_URL = "your_supabase_project_url"
+SUPABASE_SERVICE_ROLE_KEY = "your_supabase_service_role_key" 

@@ -434,6 +434,7 @@ const UserDashboard = ({
           fetchUserCredits={fetchUserCredits}
           transactions={transactions}
           setTransactions={setTransactions}
+          setActiveMode={setActiveMode}
         />
       </View>
     );
