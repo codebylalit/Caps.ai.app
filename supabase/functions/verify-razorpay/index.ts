@@ -61,36 +61,44 @@ serve(async (req) => {
     if (isValid) {
       console.log('Signature verified, processing payment...')
 
-      // First, find the payment record by status "pending" and razorpay_order_id
-      const { data: paymentData, error: paymentError } = await supabaseClient
+      // Find the most recent pending payment
+      const { data: payments, error: searchError } = await supabaseClient
         .from('payments')
         .select('*')
         .eq('status', 'pending')
-        .eq('razorpay_order_id', razorpay_order_id)
-        .single()
+        .is('razorpay_payment_id', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
 
-      if (paymentError) {
-        console.error('Payment fetch error:', paymentError)
-        throw new Error('Payment record not found or multiple records found')
+      if (searchError) {
+        console.error('Payment search error:', searchError)
+        throw searchError
       }
 
+      console.log('Found pending payments:', payments)
+
+      const paymentData = payments?.[0]
       if (!paymentData) {
-        throw new Error('Payment record not found')
+        throw new Error('No pending payment found')
       }
 
-      console.log('Found payment record:', paymentData)
+      console.log('Processing payment:', paymentData)
 
-      // Update payment status to success
+      // Update payment with Razorpay details and mark as success
       const { error: updateError } = await supabaseClient
         .from('payments')
         .update({
           status: 'success',
           verified: true,
           credits_added: true,
+          razorpay_order_id,
           razorpay_payment_id,
-          razorpay_signature
+          razorpay_signature,
+          updated_at: new Date().toISOString()
         })
         .eq('id', paymentData.id)
+        .select()
+        .single()
 
       if (updateError) {
         console.error('Payment update error:', updateError)
@@ -115,7 +123,9 @@ serve(async (req) => {
 
       const { error: creditError } = await supabaseClient
         .from('profiles')
-        .update({ credits: newCredits })
+        .update({
+          credits: newCredits
+        })
         .eq('id', paymentData.user_id)
 
       if (creditError) {

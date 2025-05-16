@@ -143,40 +143,62 @@ class RazorpayService {
         signature: paymentData.razorpay_signature
       });
       
-      const response = await fetch('https://zkojmfnmjqqvbrtbteyu.supabase.co/functions/v1/verify-razorpay', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inprb2ptZm5tanFxdmJydGJ0ZXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMTg0MjIsImV4cCI6MjA2Mjc5NDQyMn0.uXfP4z5Z-5PikE84xwEUXP9BqIgt1sZXl_-mvz7n_ZE'
-        },
-        body: JSON.stringify({
-          razorpay_order_id: paymentData.razorpay_order_id,
-          razorpay_payment_id: paymentData.razorpay_payment_id,
-          razorpay_signature: paymentData.razorpay_signature
-        })
-      });
+      // Add retry logic with exponential backoff
+      const maxRetries = 3;
+      let retryCount = 0;
+      let lastError: any = null;
+      
+      while (retryCount < maxRetries) {
+        try {
+          const response = await fetch('https://zkojmfnmjqqvbrtbteyu.supabase.co/functions/v1/verify-razorpay', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inprb2ptZm5tanFxdmJydGJ0ZXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMTg0MjIsImV4cCI6MjA2Mjc5NDQyMn0.uXfP4z5Z-5PikE84xwEUXP9BqIgt1sZXl_-mvz7n_ZE'
+            },
+            body: JSON.stringify({
+              razorpay_order_id: paymentData.razorpay_order_id,
+              razorpay_payment_id: paymentData.razorpay_payment_id,
+              razorpay_signature: paymentData.razorpay_signature
+            })
+          });
 
-      const responseText = await response.text();
-      console.log('Raw verification response:', responseText);
+          const responseText = await response.text();
+          console.log('Raw verification response:', responseText);
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse verification response:', parseError);
-        throw new Error('Invalid response from verification server');
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse verification response:', parseError);
+            throw new Error('Invalid response from verification server');
+          }
+
+          if (!response.ok) {
+            console.error('Verification failed with status:', response.status);
+            console.error('Error response:', data);
+            throw new Error(data.error || 'Payment verification failed');
+          }
+
+          console.log('Verification result:', data);
+          return data.verified === true;
+          
+        } catch (error) {
+          lastError = error;
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Exponential backoff: wait 2^retryCount * 1000 milliseconds
+            const delayMs = Math.pow(2, retryCount) * 1000;
+            console.log(`Verification attempt ${retryCount} failed. Retrying in ${delayMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+        }
       }
-
-      if (!response.ok) {
-        console.error('Verification failed with status:', response.status);
-        console.error('Error response:', data);
-        throw new Error(data.error || 'Payment verification failed');
-      }
-
-      console.log('Verification result:', data);
-
-      // The edge function will handle updating the payment status and adding credits
-      return data.verified === true;
+      
+      // If we've exhausted all retries, throw the last error
+      console.error(`Payment verification failed after ${maxRetries} attempts:`, lastError);
+      throw lastError;
 
     } catch (error) {
       console.error('Error verifying payment:', error);
