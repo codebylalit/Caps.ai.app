@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
+import { colors, commonStyles } from "../../theme/colors";
 
 const GeneratorContent = ({
   activeMode,
@@ -38,19 +39,47 @@ const GeneratorContent = ({
   const [showAuth, setShowAuth] = useState(false);
 
   const moods = [
-    "Happy", "Excited", "Peaceful", "Grateful", "Creative", 
-    "Motivated", "Romantic", "Adventurous", "Reflective", "Playful"
+    "Happy",
+    "Excited",
+    "Peaceful",
+    "Grateful",
+    "Creative",
+    "Motivated",
+    "Romantic",
+    "Adventurous",
+    "Reflective",
+    "Playful",
   ];
 
   const niches = [
-    "Travel", "Life", "Fashion", "Food", "Fitness", "Lifestyle", 
-    "Tech & Gadgets", "Sustainability", "Mental Health", "Parenting", 
-    "Pet Care", "DIY & Crafts", "Personal Finance", "Wellness & Self-Care", 
-    "Gaming", "Books & Literature", "Pop Culture & Entertainment", 
-    "Home Decor & Organization", "Beauty & Skincare", "Entrepreneurship", 
-    "Education & Learning", "Relationships & Dating", "Art & Design", 
-    "Photography", "Automobiles", "Science & Innovation", "Real Estate", 
-    "Luxury Living"
+    "Travel",
+    "Life",
+    "Fashion",
+    "Food",
+    "Fitness",
+    "Lifestyle",
+    "Tech & Gadgets",
+    "Sustainability",
+    "Mental Health",
+    "Parenting",
+    "Pet Care",
+    "DIY & Crafts",
+    "Personal Finance",
+    "Wellness & Self-Care",
+    "Gaming",
+    "Books & Literature",
+    "Pop Culture & Entertainment",
+    "Home Decor & Organization",
+    "Beauty & Skincare",
+    "Entrepreneurship",
+    "Education & Learning",
+    "Relationships & Dating",
+    "Art & Design",
+    "Photography",
+    "Automobiles",
+    "Science & Innovation",
+    "Real Estate",
+    "Luxury Living",
   ];
 
   const lengthConfigs = {
@@ -174,7 +203,9 @@ const GeneratorContent = ({
                   {
                     text:
                       generatePrompt() +
-                      (customInput ? ` Additional context: ${customInput}` : ""),
+                      (customInput
+                        ? ` Additional context: ${customInput}`
+                        : ""),
                   },
                 ],
               },

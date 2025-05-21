@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, SafeAreaView, ActivityIndicator, StatusBar } from 'react-native';
 import { supabase } from '../config/supabase'; // Adjust the path based on your project structure
-import PaymentManager from './payment';
-import tw from 'twrnc';
+import PaymentManager from './PaymentScreen';
+import { colors, commonStyles } from '../../theme/colors';
 
 const CreditsScreen = () => {
   const [user, setUser] = useState(null);
@@ -47,24 +47,34 @@ const CreditsScreen = () => {
 
   if (loading) {
     return (
-      <View style={tw`flex-1 justify-center items-center`}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.accent.sage} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!user) {
     return (
-      <View style={tw`flex-1 justify-center items-center p-4`}>
-        <Text style={tw`text-lg text-center text-gray-600`}>
-          Please log in to manage your credits
-        </Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <Text style={{ fontSize: 20, fontWeight: '600', color: colors.text.primary, marginBottom: 8, textAlign: 'center' }}>
+            Sign In Required
+          </Text>
+          <Text style={{ fontSize: 16, color: colors.text.secondary, textAlign: 'center' }}>
+            Please log in to manage your credits and unlock premium features
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-gray-50`}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
       <PaymentManager
         user={user}
         supabase={supabase}

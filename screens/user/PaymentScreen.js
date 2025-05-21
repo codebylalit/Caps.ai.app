@@ -12,8 +12,8 @@ import {
   NativeModules,
 } from "react-native";
 import tw from "twrnc";
-import { RAZORPAY_KEY_ID } from '../config/razorpay';
-import RazorpayService from '../src/services/razorpay.ts';
+import { RAZORPAY_KEY_ID } from '../../config/razorpay';
+import RazorpayService from '../../src/services/razorpay.ts';
 
 let RazorpayCheckout;
 let razorpayEvents;

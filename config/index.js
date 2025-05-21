@@ -39,7 +39,6 @@ export const APP_THEME = {
       { id: "generator", icon: "magic", label: "Generator" },
       { id: "history", icon: "history", label: "History" },
       { id: "credits", icon: "money", label: "Credits" },
-      { id: "profile", icon: "user", label: "Profile" }
     ]
   }
 };

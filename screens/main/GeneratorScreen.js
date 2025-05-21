@@ -3,12 +3,12 @@ import { View, TouchableOpacity, Text, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import AuthScreen from "./auth";
-import UserDashboard from "./dashboard";
-import GeneratorContent from "./generatorlogic";
-import { useAuth } from "../authcontext";
+import AuthScreen from "./AuthScreen";
+import UserDashboard from "../UserDashboard";
+import GeneratorContent from "./GeneratorLogic";
+import { useAuth } from "../auth/authcontext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useUsageTracking } from "./freecredits";
+import { useUsageTracking } from "../freecredits";
 
 export const API_CONFIG = {
   BASE_URL:
@@ -37,7 +37,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
 
   const fetchHistory = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("caption_history")
@@ -54,7 +54,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
 
   const deductCredit = async () => {
     if (!user || !userProfile) return false;
-    
+
     try {
       const newCredits = userProfile.credits - 1;
       const { data, error } = await supabase
@@ -65,7 +65,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
         .single();
 
       if (error) throw error;
-      
+
       await fetchUserProfile(user.id);
       setUserCredits(newCredits);
       return true;

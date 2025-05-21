@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { SafeAreaView, StatusBar, View } from "react-native";
 import tw from "twrnc";
-import { AuthProvider } from "./authcontext";
+import { AuthProvider } from "./screens/auth/authcontext";
 import HomeScreen from "./screens/home";
-import GeneratorScreen from "./screens/genrate";
+import GeneratorScreen from "./screens/main/GeneratorScreen";
 import { ActivityIndicator } from "react-native";
 
 const LoadingScreen = () => (
@@ -33,8 +33,8 @@ const CaptionGenerator = () => {
         ) : (
           <>
             {activeMode === null ? (
-              <HomeScreen 
-                setActiveMode={setActiveMode} 
+              <HomeScreen
+                setActiveMode={setActiveMode}
                 onLoadingChange={handleLoading}
               />
             ) : (
