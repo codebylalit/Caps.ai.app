@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Clipboard } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  Clipboard,
+} from "react-native";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
@@ -43,7 +52,9 @@ const UserDashboard = ({
   };
 
   const handleCopy = async (item) => {
-    const textToCopy = `${item.caption}\n\n${item.hashtags ? item.hashtags.map(tag => `#${tag}`).join(' ') : ''}`;
+    const textToCopy = `${item.caption}\n\n${
+      item.hashtags ? item.hashtags.map((tag) => `#${tag}`).join(" ") : ""
+    }`;
     await Clipboard.setString(textToCopy);
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
@@ -55,10 +66,20 @@ const UserDashboard = ({
 
   if (!user) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colors.background.main }}
+      >
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={colors.background.main}
+        />
         <View style={tw`flex-1 justify-center items-center p-4`}>
-          <Text style={[tw`text-xl mb-4 text-center`, { color: colors.text.secondary }]}>
+          <Text
+            style={[
+              tw`text-xl mb-4 text-center`,
+              { color: colors.text.secondary },
+            ]}
+          >
             Please sign in to view your dashboard
           </Text>
           <TouchableOpacity
@@ -69,7 +90,9 @@ const UserDashboard = ({
             ]}
             onPress={() => setShowAuth(true)}
           >
-            <Text style={[tw`font-semibold`, { color: colors.text.light }]}>Sign In</Text>
+            <Text style={[tw`font-semibold`, { color: colors.text.light }]}>
+              Sign In
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -91,7 +114,7 @@ const UserDashboard = ({
           <View>
             <View
               style={[
-                tw`flex-row items-center justify-between mb-6`,
+                tw`flex-row items-center justify-between mb-4`,
                 { backgroundColor: colors.background.main },
               ]}
             >
@@ -104,11 +127,6 @@ const UserDashboard = ({
                 >
                   Generation History
                 </Text>
-                <Text
-                  style={[tw`text-base mt-1`, { color: colors.text.secondary }]}
-                >
-                  Your past generations and captions
-                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
@@ -118,7 +136,7 @@ const UserDashboard = ({
                 ]}
               >
                 <FontAwesome
-                  name="chevron-left"
+                  name="arrow-left"
                   size={16}
                   color={colors.text.primary}
                 />
@@ -138,10 +156,20 @@ const UserDashboard = ({
                   color={colors.text.muted}
                   style={tw`mb-3`}
                 />
-                <Text style={[tw`text-lg font-semibold mb-1`, { color: colors.text.primary }]}>
+                <Text
+                  style={[
+                    tw`text-lg font-semibold mb-1`,
+                    { color: colors.text.primary },
+                  ]}
+                >
                   No History Yet
                 </Text>
-                <Text style={[tw`text-sm text-center`, { color: colors.text.secondary }]}>
+                <Text
+                  style={[
+                    tw`text-sm text-center`,
+                    { color: colors.text.secondary },
+                  ]}
+                >
                   Your generated captions and hashtags will appear here
                 </Text>
               </View>
@@ -174,7 +202,10 @@ const UserDashboard = ({
                         </Text>
                       </View> */}
                       <Text
-                        style={[tw`text-base font-medium mb-1`, { color: colors.text.primary }]}
+                        style={[
+                          tw`text-base font-medium mb-1`,
+                          { color: colors.text.primary },
+                        ]}
                       >
                         {item.caption}
                       </Text>
@@ -185,7 +216,7 @@ const UserDashboard = ({
                               key={index}
                               style={[
                                 tw`px-1.5 py-0.5 rounded-full mr-1 mb-1`,
-                                { backgroundColor: colors.accent.sage + '20' },
+                                { backgroundColor: colors.accent.sage + "20" },
                               ]}
                             >
                               <Text
@@ -200,7 +231,9 @@ const UserDashboard = ({
                           ))}
                         </View>
                       )}
-                      <View style={tw`flex-row items-center justify-between mt-1`}>
+                      <View
+                        style={tw`flex-row items-center justify-between mt-1`}
+                      >
                         <Text
                           style={[
                             tw`text-xs flex-1`,
@@ -213,7 +246,7 @@ const UserDashboard = ({
                           <TouchableOpacity
                             style={[
                               tw`w-6 h-6 items-center justify-center rounded-full mr-1`,
-                              { backgroundColor: colors.accent.sage + '20' },
+                              { backgroundColor: colors.accent.sage + "20" },
                             ]}
                             onPress={() => handleCopy(item)}
                           >
@@ -226,7 +259,7 @@ const UserDashboard = ({
                           <TouchableOpacity
                             style={[
                               tw`w-6 h-6 items-center justify-center rounded-full`,
-                              { backgroundColor: colors.status.error + '20' },
+                              { backgroundColor: colors.status.error + "20" },
                             ]}
                             onPress={() => deleteHistoryItem(item.id)}
                           >
@@ -272,7 +305,7 @@ const UserDashboard = ({
                 ]}
               >
                 <FontAwesome
-                  name="chevron-left"
+                  name="arrow-left"
                   size={16}
                   color={colors.text.primary}
                 />
@@ -315,7 +348,7 @@ const UserDashboard = ({
                 ]}
               >
                 <FontAwesome
-                  name="chevron-left"
+                  name="arrow-left"
                   size={16}
                   color={colors.text.primary}
                 />
@@ -325,7 +358,9 @@ const UserDashboard = ({
             {loadingTransactions ? (
               <View style={tw`flex-1 justify-center items-center`}>
                 <ActivityIndicator size="large" color={colors.accent.sage} />
-                <Text style={[tw`text-base mt-4`, { color: colors.text.secondary }]}>
+                <Text
+                  style={[tw`text-base mt-4`, { color: colors.text.secondary }]}
+                >
                   Loading Transactions...
                 </Text>
               </View>
@@ -338,7 +373,10 @@ const UserDashboard = ({
                 ]}
               >
                 <Text
-                  style={[tw`text-base text-center`, { color: colors.text.secondary }]}
+                  style={[
+                    tw`text-base text-center`,
+                    { color: colors.text.secondary },
+                  ]}
                 >
                   No transaction history found
                 </Text>
@@ -364,7 +402,10 @@ const UserDashboard = ({
                         {transaction.credits} Credits
                       </Text>
                       <Text
-                        style={[tw`text-base`, { color: colors.text.secondary }]}
+                        style={[
+                          tw`text-base`,
+                          { color: colors.text.secondary },
+                        ]}
                       >
                         ₹{transaction.amount}
                       </Text>
@@ -401,4 +442,4 @@ const UserDashboard = ({
   );
 };
 
-export default UserDashboard; 
+export default UserDashboard;

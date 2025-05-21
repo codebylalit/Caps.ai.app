@@ -14,6 +14,8 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  BackHandler,
+  Easing,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import tw from "twrnc";
@@ -51,6 +53,8 @@ const HomeScreen = ({ setActiveMode }) => {
   );
   const { anonymousUsageCount, MAX_ANONYMOUS_GENERATIONS } = useUsageTracking();
   const [localUser, setLocalUser] = useState(null);
+  const [fadeAnim] = useState(new Animated.Value(1));
+  const [scaleAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -90,6 +94,27 @@ const HomeScreen = ({ setActiveMode }) => {
 
     return () => clearInterval(intervalId);
   }, [user]);
+
+  // Add back button handler
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showGeneratorModal) {
+        hideModal();
+        return true;
+      }
+      if (showProfile) {
+        setShowProfile(false);
+        return true;
+      }
+      if (showAuth) {
+        setShowAuth(false);
+        return true;
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showGeneratorModal, showProfile, showAuth]);
 
   const handleLogout = async () => {
     try {
@@ -145,6 +170,43 @@ const HomeScreen = ({ setActiveMode }) => {
     animateModal(false);
   };
 
+  const animateTransition = (callback) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.cubic),
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.cubic),
+      }),
+    ]).start(() => {
+      callback();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+      ]).start();
+    });
+  };
+
+  const handleNavigation = (mode) => {
+    animateTransition(() => setActiveMode(mode));
+  };
+
   // FeatureCard for content creation
   const FeatureCard = ({ icon, title, description, color, onPress }) => (
     <TouchableOpacity
@@ -156,7 +218,7 @@ const HomeScreen = ({ setActiveMode }) => {
         ...commonStyles.shadow.medium,
         width: "100%",
       }}
-      onPress={onPress}
+      onPress={() => animateTransition(onPress)}
     >
       <View
         style={{
@@ -204,6 +266,11 @@ const HomeScreen = ({ setActiveMode }) => {
     </TouchableOpacity>
   );
 
+  // Update profile button
+  const handleProfilePress = () => {
+    animateTransition(() => setShowProfile(true));
+  };
+
   if (showOnboarding) {
     return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
   }
@@ -215,7 +282,13 @@ const HomeScreen = ({ setActiveMode }) => {
   if (showProfile) {
     return (
       <ProfileScreen
-        setActiveMode={() => setShowProfile(false)}
+        setActiveMode={(mode) => {
+          if (mode === null) {
+            animateTransition(() => setShowProfile(false));
+          } else {
+            animateTransition(() => setActiveMode(mode));
+          }
+        }}
         setShowAuth={setShowAuth}
       />
     );
@@ -227,191 +300,225 @@ const HomeScreen = ({ setActiveMode }) => {
         barStyle="dark-content"
         backgroundColor={colors.background.main}
       />
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View
-          style={{
-            paddingHorizontal: commonStyles.spacing.xl,
-            paddingTop: commonStyles.spacing.xl,
-          }}
-        >
-          {/* Header */}
-          <View style={[tw`flex-row justify-between items-center mb-10`]}>
-            <View>
-              <Text
-                style={[
-                  tw`text-3xl font-bold mb-2`,
-                  { color: colors.text.primary },
-                ]}
-              >
-                Hi {localUser?.name || displayName || "there"}
-              </Text>
-              <Text
-                style={[
-                  tw`text-lg`,
-                  { color: colors.text.secondary, fontWeight: "500" },
-                ]}
-              >
-                {currentGreeting}
-              </Text>
+      <Animated.View 
+        style={{ 
+          flex: 1,
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }]
+        }}
+      >
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <View
+            style={{
+              paddingHorizontal: commonStyles.spacing.xl,
+              paddingTop: commonStyles.spacing.xl,
+            }}
+          >
+            {/* Header */}
+            <View style={tw`flex-row justify-between items-center mb-10`}>
+              <View>
+                <Text
+                  style={[
+                    tw`text-3xl font-bold`,
+                    { color: colors.text.primary },
+                  ]}
+                >
+                  Hi {localUser?.name || displayName || "there"}
+                </Text>
+                <Text
+                  style={[
+                    tw`text-lg`,
+                    { color: colors.text.secondary, fontWeight: "500" },
+                  ]}
+                >
+                  {currentGreeting}
+                </Text>
+              </View>
+              {user ? (
+                <TouchableOpacity
+                  onPress={handleProfilePress}
+                  style={{
+                    backgroundColor: colors.accent.sage,
+                    width: 50,
+                    height: 50,
+                    borderRadius: 50,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    ...commonStyles.shadow.light,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.text.light,
+                      fontSize: 18,
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {(localUser?.name || displayName || "U")[0]}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => handleNavigation("credits")}
+                  style={{
+                    backgroundColor: colors.accent.sage,
+                    paddingHorizontal: commonStyles.spacing.lg,
+                    paddingVertical: commonStyles.spacing.sm,
+                    borderRadius: commonStyles.borderRadius.medium,
+                    ...commonStyles.shadow.light,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.text.light,
+                      fontSize: 16,
+                      fontWeight: "700",
+                      textAlign: "center",
+                    }}
+                  >
+                    Credits: {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <TouchableOpacity
-              onPress={() => setActiveMode("credits")}
-              style={{
-                backgroundColor: colors.accent.sage,
-                paddingHorizontal: commonStyles.spacing.lg,
-                paddingVertical: commonStyles.spacing.sm,
-                borderRadius: commonStyles.borderRadius.medium,
-                ...commonStyles.shadow.light,
-              }}
-            >
-              <Text
+
+            {/* Search Bar */}
+            <View style={{ marginBottom: commonStyles.spacing.xl }}>
+              <View
                 style={{
-                  color: colors.text.light,
-                  fontSize: 16,
-                  fontWeight: "700",
-                  textAlign: "center",
+                  backgroundColor: colors.accent.sage,
+                  borderRadius: commonStyles.borderRadius.medium,
+                  paddingHorizontal: commonStyles.spacing.lg,
+                  paddingVertical: commonStyles.spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  ...commonStyles.shadow.light,
                 }}
               >
-                Credits: {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Bar */}
-          <View style={{ marginBottom: commonStyles.spacing.xl }}>
-            <View
-              style={{
-                backgroundColor: colors.accent.sage,
-                borderRadius: commonStyles.borderRadius.medium,
-                paddingHorizontal: commonStyles.spacing.lg,
-                paddingVertical: commonStyles.spacing.md,
-                flexDirection: "row",
-                alignItems: "center",
-                ...commonStyles.shadow.light,
-              }}
-            >
-              <FontAwesome
-                name="search"
-                size={18}
-                color={colors.text.light}
-                style={{ marginRight: commonStyles.spacing.sm }}
-              />
-              <TextInput
-                placeholder="Search for content..."
-                placeholderTextColor="rgba(255, 255, 255, 0.8)"
-                style={{
-                  flex: 1,
-                  color: colors.text.light,
-                  fontSize: 16,
-                  fontWeight: "500",
-                }}
-              />
+                <FontAwesome
+                  name="search"
+                  size={18}
+                  color={colors.text.light}
+                  style={{ marginRight: commonStyles.spacing.sm }}
+                />
+                <TextInput
+                  placeholder="Search for content..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.8)"
+                  style={{
+                    flex: 1,
+                    color: colors.text.light,
+                    fontSize: 16,
+                    fontWeight: "500",
+                  }}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* Content Creation Section */}
-          <View style={{ marginBottom: commonStyles.spacing.xl }}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: commonStyles.spacing.lg,
-              }}
-            >
+            {/* Content Creation Section */}
+            <View style={{ marginBottom: commonStyles.spacing.xl }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: commonStyles.spacing.lg,
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.text.primary,
+                    fontSize: 24,
+                    fontWeight: "800",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Content Creation
+                </Text>
+                <TouchableOpacity>
+                  <Text
+                    style={{
+                      color: colors.accent.sage,
+                      fontSize: 16,
+                      fontWeight: "600",
+                    }}
+                  >
+                    See all
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: "column" }}>
+                <FeatureCard
+                  icon="magic"
+                  title="Smart Captions"
+                  description="AI-powered captions"
+                  color={colors.accent.sage}
+                  onPress={() => handleNavigation("mood")}
+                />
+                <FeatureCard
+                  icon="hashtag"
+                  title="Hashtag Pro"
+                  description="Trending hashtags"
+                  color={colors.accent.orange}
+                  onPress={() => handleNavigation("niche")}
+                />
+                <FeatureCard
+                  icon="image"
+                  title="Image Captions"
+                  description="Vision-based captions"
+                  color={colors.accent.olive}
+                  onPress={() => handleNavigation("image")}
+                />
+              </View>
+            </View>
+
+            {/* Recent Activities */}
+            <View style={{ marginBottom: commonStyles.spacing.xl }}>
               <Text
                 style={{
                   color: colors.text.primary,
                   fontSize: 24,
                   fontWeight: "800",
+                  marginBottom: commonStyles.spacing.lg,
                   letterSpacing: 0.5,
                 }}
               >
-                Content Creation
+                Recent Activities
               </Text>
-              <TouchableOpacity>
+              <View
+                style={{
+                  backgroundColor: colors.accent.beige,
+                  borderRadius: commonStyles.borderRadius.medium,
+                  padding: commonStyles.spacing.lg,
+                  marginBottom: commonStyles.spacing.md,
+                  ...commonStyles.shadow.light,
+                }}
+              >
                 <Text
                   style={{
-                    color: colors.accent.sage,
-                    fontSize: 16,
-                    fontWeight: "600",
+                    color: colors.text.primary,
+                    fontWeight: "700",
+                    fontSize: 18,
+                    marginBottom: commonStyles.spacing.sm,
+                    letterSpacing: 0.3,
                   }}
                 >
-                  See all
+                  Generated Content
                 </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: "column" }}>
-              <FeatureCard
-                icon="magic"
-                title="Smart Captions"
-                description="AI-powered captions"
-                color={colors.accent.sage}
-                onPress={() => setActiveMode("mood")}
-              />
-              <FeatureCard
-                icon="hashtag"
-                title="Hashtag Pro"
-                description="Trending hashtags"
-                color={colors.accent.orange}
-                onPress={() => setActiveMode("niche")}
-              />
-              <FeatureCard
-                icon="image"
-                title="Image Captions"
-                description="Vision-based captions"
-                color={colors.accent.olive}
-                onPress={() => setActiveMode("image")}
-              />
+                <Text
+                  style={{
+                    color: colors.text.secondary,
+                    fontSize: 16,
+                    fontWeight: "500",
+                  }}
+                >
+                  View your recent generations
+                </Text>
+              </View>
             </View>
           </View>
-
-          {/* Recent Activities */}
-          <View style={{ marginBottom: commonStyles.spacing.xl }}>
-            <Text
-              style={{
-                color: colors.text.primary,
-                fontSize: 24,
-                fontWeight: "800",
-                marginBottom: commonStyles.spacing.lg,
-                letterSpacing: 0.5,
-              }}
-            >
-              Recent Activities
-            </Text>
-            <View
-              style={{
-                backgroundColor: colors.accent.beige,
-                borderRadius: commonStyles.borderRadius.medium,
-                padding: commonStyles.spacing.lg,
-                marginBottom: commonStyles.spacing.md,
-                ...commonStyles.shadow.light,
-              }}
-            >
-              <Text
-                style={{
-                  color: colors.text.primary,
-                  fontWeight: "700",
-                  fontSize: 18,
-                  marginBottom: commonStyles.spacing.sm,
-                  letterSpacing: 0.3,
-                }}
-              >
-                Generated Content
-              </Text>
-              <Text
-                style={{
-                  color: colors.text.secondary,
-                  fontSize: 16,
-                  fontWeight: "500",
-                }}
-              >
-                View your recent generations
-              </Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
 
       {/* Bottom Navigation */}
       <View
@@ -531,7 +638,7 @@ const HomeScreen = ({ setActiveMode }) => {
                   }}
                   onPress={() => {
                     hideModal();
-                    setActiveMode("mood");
+                    handleNavigation("mood");
                   }}
                 >
                   <Text
@@ -567,7 +674,7 @@ const HomeScreen = ({ setActiveMode }) => {
                   }}
                   onPress={() => {
                     hideModal();
-                    setActiveMode("niche");
+                    handleNavigation("niche");
                   }}
                 >
                   <Text
@@ -597,13 +704,13 @@ const HomeScreen = ({ setActiveMode }) => {
                     backgroundColor: colors.accent.olive,
                     borderRadius: commonStyles.borderRadius.medium,
                     padding: 18,
-                    marginBottom: 0,
+                    marginBottom: 16,
                     alignItems: "center",
                     ...commonStyles.shadow.light,
                   }}
                   onPress={() => {
                     hideModal();
-                    setActiveMode("image");
+                    handleNavigation("image");
                   }}
                 >
                   <Text
