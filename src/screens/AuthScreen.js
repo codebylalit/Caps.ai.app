@@ -7,10 +7,10 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import tw from "../../tw-rn";
+import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import { useAuth } from "./authcontext";
-import { colors, commonStyles } from "../../theme/colors";
+import { useAuth } from "../hooks/useAuth";
+import { colors, commonStyles } from "../theme/colors";
 
 const AuthScreen = ({ onClose }) => {
   const { supabase, setUser, signInWithOtp, verifyOtp, otpLoading } = useAuth();

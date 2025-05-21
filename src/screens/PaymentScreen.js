@@ -10,10 +10,12 @@ import {
   BackHandler,
   NativeEventEmitter,
   NativeModules,
+  ActivityIndicator,
 } from "react-native";
 import tw from "twrnc";
-import { RAZORPAY_KEY_ID } from '../../config/razorpay';
-import RazorpayService from '../../src/services/razorpay.ts';
+import { RAZORPAY_KEY_ID } from '../config/razorpay';
+import RazorpayService from '../services/razorpay';
+import { colors, commonStyles } from '../theme/colors';
 
 let RazorpayCheckout;
 let razorpayEvents;
@@ -34,7 +36,7 @@ const creditPackages = [
   { credits: 500, price: 99, popular: false, discount: false, label: "Pro Pack" },
 ];
 
-const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActiveMode }) => {
+const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActiveMode, setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [transactionId, setTransactionId] = useState(null);
@@ -272,7 +274,8 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         .from("payments")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(3);
 
       if (error) throw error;
       setTransactions(data || []);
@@ -359,7 +362,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     }
   };
 
-  const handlePayment = async (plan, amount) => {
+  const handlePurchase = async (pkg) => {
     if (!user) {
       Alert.alert("Error", "Please log in to make a payment");
       return;
@@ -368,15 +371,15 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     setLoading(true);
     const txnId = generateTransactionId();
     setTransactionId(txnId);
-    setProcessingPlan(plan);
+    setProcessingPlan(pkg.credits.toString());
 
     try {
       const { error: paymentInitError } = await supabase
         .from("payments")
         .insert({
           user_id: user.id,
-          amount,
-          credits: parseInt(plan),
+          amount: pkg.price * 100,
+          credits: pkg.credits,
           transaction_id: txnId,
           status: "pending",
           credits_added: false,
@@ -385,10 +388,10 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
       if (paymentInitError) throw new Error('Failed to initialize payment');
 
       const orderData = await RazorpayService.createOrder({
-        amount: amount * 100,
+        amount: pkg.price * 100,
         currency: 'INR',
         receipt: txnId,
-        notes: { plan, userId: user.id }
+        notes: { plan: pkg.credits.toString(), userId: user.id }
       });
 
       if (!orderData?.id) throw new Error('Failed to create payment order');
@@ -396,10 +399,10 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
       console.log('Starting payment with order:', orderData.id);
       
       const paymentData = await RazorpayService.initiatePayment({
-        amount: amount * 100,
+        amount: pkg.price * 100,
         orderId: orderData.id,
         currency: 'INR',
-        description: `${plan} Credits Purchase`,
+        description: `${pkg.credits} Credits Purchase`,
         email: user.email,
         contact: user.phone || '',
         name: user.name || ''
@@ -435,90 +438,199 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
   };
 
   return (
-    <ScrollView style={tw`flex-1 px-4 py-3`}>
-      <View style={tw`bg-white rounded-2xl p-6 shadow-sm mb-6`}>
-        <Text style={tw`text-2xl font-bold text-slate-800 text-center mb-2`}>{credits}</Text>
-        <Text style={tw`text-base text-slate-600 text-center`}>Available Credits</Text>
+    <View style={{ flex: 1 }}>
+      <View
+        style={[
+          tw`p-4 rounded-lg mb-6`,
+          { backgroundColor: colors.background.card },
+          commonStyles.shadow.light,
+        ]}
+      >
+        <View
+          style={[
+            tw`p-4 rounded-lg`,
+            { backgroundColor: colors.background.card },
+            commonStyles.shadow.light,
+          ]}
+        >
+          <Text style={[tw`text-3xl font-bold`, { color: colors.accent.sage }]}>
+            {credits}
+          </Text>
+          <Text style={[tw`text-sm mt-1`, { color: colors.text.secondary }]}>
+            Credits remaining
+          </Text>
+        </View>
       </View>
 
-      <Text style={tw`text-lg font-semibold text-slate-800 mb-4`}>Buy Credits</Text>
       <View style={tw`mb-6`}>
-        {creditPackages.map((pkg, index) => {
-          const originalPrice = pkg.discount ? pkg.originalPrice : pkg.price;
-          const savings = pkg.discount ? originalPrice - pkg.price : 0;
+        <Text
+          style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}
+        >
+          Purchase Credits
+        </Text>
+      </View>
 
-          return (
-            <TouchableOpacity
-              key={index}
-              style={tw`bg-white p-4 rounded-xl shadow-sm m-1 ${pkg.popular ? "border-2 border-orange-500" : ""} ${loading ? "opacity-70" : ""}`}
-              onPress={() => handlePayment(pkg.credits.toString(), pkg.price)}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <View style={tw`flex-row justify-between items-center`}>
-                <View>
-                  <Text style={tw`text-lg font-semibold text-slate-800`}>{pkg.credits} Credits</Text>
-                  <View style={tw`flex-row items-center`}>
-                    <Text style={tw`text-base text-slate-600`}>₹{pkg.price}</Text>
-                    {pkg.discount && (
-                      <Text style={tw`text-sm text-slate-400 line-through ml-2`}>₹{originalPrice}</Text>
-                    )}
-                  </View>
-                  {pkg.discount && (
-                    <Text style={tw`text-sm text-green-600 mt-1`}>Save ₹{savings}!</Text>
-                  )}
-                </View>
-                <View style={tw`flex items-end`}>
-                  {pkg.label && (
-                    <View style={tw`bg-orange-100 px-3 py-1 rounded-full mb-2`}>
-                      <Text style={tw`text-orange-600 font-medium`}>{pkg.label}</Text>
-                    </View>
-                  )}
-                  {pkg.discount && (
-                    <View style={tw`bg-orange-100 px-3 py-1 rounded-2xl mt-2`}>
-                      <Text style={tw`text-red-600 font-medium`}>50% Off</Text>
-                    </View>
-                  )}
-                </View>
+      {creditPackages.map((pkg, index) => {
+        const originalPrice = pkg.discount ? pkg.originalPrice : pkg.price;
+        return (
+          <TouchableOpacity
+            key={index}
+            style={[
+              tw`mb-4 p-4 rounded-lg`,
+              { backgroundColor: colors.background.card },
+              commonStyles.shadow.light,
+            ]}
+            onPress={() => handlePurchase(pkg)}
+            disabled={loading}
+          >
+            <View style={tw`flex-row justify-between items-center mb-2`}>
+              <View>
+                <Text
+                  style={[
+                    tw`text-lg font-semibold`,
+                    { color: colors.text.primary },
+                  ]}
+                >
+                  {pkg.credits} Credits
+                </Text>
+                <Text style={[tw`text-sm`, { color: colors.text.secondary }]}>
+                  {pkg.label}
+                </Text>
               </View>
-              {loading && processingPlan === pkg.credits.toString() && (
-                <View style={tw`mt-3 bg-indigo-100 p-2 rounded-lg`}>
-                  <Text style={tw`text-indigo-600 text-center font-medium`}>Processing...</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={tw`text-lg font-semibold text-slate-800 mb-4`}>Transaction History</Text>
-      <View style={tw`mb-6`}>
-        {transactions.length > 0 ? (
-          transactions.map((transaction, index) => (
-            <View key={index} style={tw`bg-white p-4 rounded-xl shadow-sm mb-2`}>
-              <View style={tw`flex-row justify-between items-center`}>
-                <View>
-                  <Text style={tw`text-base font-medium text-slate-800`}>{transaction.credits} Credits</Text>
-                  <Text style={tw`text-sm text-slate-600`}>₹{transaction.amount}</Text>
-                </View>
-                <View>
-                  <Text style={tw`${transaction.status === "success" ? "text-green-600" : transaction.status === "pending" ? "text-yellow-600" : "text-red-600"} text-sm font-medium`}>
-                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+              <View style={tw`items-end`}>
+                <Text
+                  style={[tw`text-lg font-bold`, { color: colors.accent.sage }]}
+                >
+                  ₹{pkg.price}
+                </Text>
+                {pkg.discount && (
+                  <Text
+                    style={[
+                      tw`text-sm line-through`,
+                      { color: colors.text.muted },
+                    ]}
+                  >
+                    ₹{originalPrice}
                   </Text>
-                  <Text style={tw`text-xs text-slate-500`}>
-                    {new Date(transaction.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
+                )}
               </View>
             </View>
-          ))
-        ) : (
-          <View style={tw`bg-white p-4 rounded-xl shadow-sm`}>
-            <Text style={tw`text-center text-slate-600`}>No transaction history found</Text>
-          </View>
+            {pkg.popular && (
+              <View
+                style={[
+                  tw`absolute -top-2 -right-2 px-2 py-1 rounded-full`,
+                  { backgroundColor: colors.accent.sage },
+                ]}
+              >
+                <Text
+                  style={[
+                    tw`text-xs font-medium`,
+                    { color: colors.text.light },
+                  ]}
+                >
+                  Popular
+                </Text>
+              </View>
+            )}
+            {loading && processingPlan === pkg.credits.toString() && (
+              <View
+                style={[
+                  tw`mt-3 p-2 rounded-lg`,
+                  { backgroundColor: colors.background.light },
+                ]}
+              >
+                <ActivityIndicator color={colors.accent.sage} />
+                <Text
+                  style={[
+                    tw`text-center mt-1`,
+                    { color: colors.text.secondary },
+                  ]}
+                >
+                  Processing...
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+
+      <View style={tw`mb-6 flex-row justify-between items-center`}>
+        <Text
+          style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}
+        >
+          Transaction History
+        </Text>
+        {transactions.length > 0 && (
+          <TouchableOpacity onPress={() => setActiveTab("transactions")}>
+            <Text style={[tw`text-sm`, { color: colors.accent.sage }]}>
+              View All 
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
-    </ScrollView>
+
+      {transactions.length === 0 ? (
+        <View
+          style={[
+            tw`p-4 rounded-lg`,
+            { backgroundColor: colors.background.card },
+            commonStyles.shadow.light,
+          ]}
+        >
+          <Text style={[tw`text-center`, { color: colors.text.secondary }]}>
+            No transaction history found
+          </Text>
+        </View>
+      ) : (
+        transactions.map((transaction, index) => (
+          <View
+            key={index}
+            style={[
+              tw`p-4 rounded-lg mb-3`,
+              { backgroundColor: colors.background.card },
+              commonStyles.shadow.light,
+            ]}
+          >
+            <View style={tw`flex-row justify-between items-center`}>
+              <View>
+                <Text
+                  style={[
+                    tw`text-base font-medium`,
+                    { color: colors.text.primary },
+                  ]}
+                >
+                  {transaction.credits} Credits
+                </Text>
+                <Text style={[tw`text-sm`, { color: colors.text.secondary }]}>
+                  ₹{transaction.amount}
+                </Text>
+              </View>
+              <View>
+                <Text
+                  style={[
+                    tw`text-sm font-medium`,
+                    {
+                      color:
+                        transaction.status === "success"
+                          ? colors.status.success
+                          : transaction.status === "pending"
+                          ? colors.status.warning
+                          : colors.status.error,
+                    },
+                  ]}
+                >
+                  {transaction.status.charAt(0).toUpperCase() +
+                    transaction.status.slice(1)}
+                </Text>
+                <Text style={[tw`text-xs`, { color: colors.text.muted }]}>
+                  {new Date(transaction.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))
+      )}
+    </View>
   );
 };
 

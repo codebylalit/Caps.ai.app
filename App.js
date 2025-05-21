@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SafeAreaView, StatusBar, View } from "react-native";
 import tw from "twrnc";
-import { AuthProvider } from "./screens/auth/authcontext";
-import HomeScreen from "./screens/home";
-import GeneratorScreen from "./screens/main/GeneratorScreen";
+import { AuthProvider } from './src/hooks/useAuth';
+import HomeScreen from './src/screens/HomeScreen';
+import GeneratorScreen from './src/screens/GeneratorScreen';
 import { ActivityIndicator } from "react-native";
 
 const LoadingScreen = () => (

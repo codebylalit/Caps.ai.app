@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { View, TouchableOpacity, Text, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Modal,
+  TextInput,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  SafeAreaView,
+  StatusBar,
+} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import AuthScreen from "./AuthScreen";
-import UserDashboard from "../UserDashboard";
+import UserDashboard from "./UserDashboard";
 import GeneratorContent from "./GeneratorLogic";
-import { useAuth } from "../auth/authcontext";
+import { useAuth } from "../hooks/useAuth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useUsageTracking } from "../freecredits";
+import { useUsageTracking } from "../hooks/useFreeCredits";
+import { colors, commonStyles } from "../theme/colors";
 
 export const API_CONFIG = {
   BASE_URL:
@@ -75,35 +89,6 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
     }
   };
 
-  const getThemeColors = () => {
-    switch (activeMode) {
-      case "mood":
-        return {
-          bg: "bg-orange-200",
-          text: "text-orange-600",
-          iconColor: "#FB923C",
-        };
-      case "niche":
-        return {
-          bg: "bg-violet-200",
-          text: "text-violet-600",
-          iconColor: "#8B5CF6",
-        };
-      case "image":
-        return {
-          bg: "bg-green-200",
-          text: "text-green-600",
-          iconColor: "#34D399",
-        };
-      default:
-        return {
-          bg: "bg-orange-200",
-          text: "text-orange-600",
-          iconColor: "#FB923C",
-        };
-    }
-  };
-
   const deleteHistoryItem = async (id) => {
     try {
       const { data: existingItem, error: checkError } = await supabase
@@ -140,31 +125,91 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
     }
   };
 
+  const handleBack = () => {
+    if (activeTab !== "generator") {
+      setActiveTab("generator");
+    } else {
+      setActiveMode(null);
+    }
+  };
+
+  const getScreenTitle = () => {
+    switch (activeTab) {
+      case "generator":
+        return activeMode === "mood" ? "Smart Captions" :
+               activeMode === "niche" ? "Hashtag Pro" :
+               activeMode === "image" ? "Image Captions" : "Generator";
+      case "history":
+        return "Generation History";
+      case "credits":
+        return "Credits";
+      case "transactions":
+        return "Transactions";
+      default:
+        return "";
+    }
+  };
+
   return (
-    <View style={tw`flex-1 mt-8`}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
       {showAuth ? (
         <AuthScreen onClose={() => setShowAuth(false)} />
       ) : (
         <>
           <View style={tw`flex-1`}>
             {activeTab === "generator" && (
-              <GeneratorContent
-                activeMode={activeMode}
-                setActiveMode={setActiveMode}
-                user={user}
-                supabase={supabase}
-                userCredits={userCredits}
-                deductCredit={deductCredit}
-                getThemeColors={getThemeColors}
-                API_CONFIG={API_CONFIG}
-                anonymousUsageCount={anonymousUsageCount}
-                MAX_ANONYMOUS_GENERATIONS={MAX_ANONYMOUS_GENERATIONS}
-                incrementAnonymousUsage={incrementAnonymousUsage}
-              />
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {/* Back button and Credits */}
+                <View style={[
+                  tw`flex-row items-center px-4 py-3 pb-2`, // Adjusted padding
+                  { backgroundColor: colors.background.main }, // Keep background consistent
+                ]}>
+                  <TouchableOpacity
+                    onPress={handleBack}
+                    style={tw`p-2`}
+                  >
+                    <FontAwesome
+                      name="chevron-left"
+                      size={16}
+                      color={colors.text.primary}
+                    />
+                  </TouchableOpacity>
+                  <Text style={[ // Add title here as well for context
+                    tw`text-lg font-semibold flex-1 ml-3`,
+                    { color: colors.text.primary }
+                  ]}>
+                    {getScreenTitle()}
+                  </Text>
+                  {user && userCredits > 0 && (
+                    <View style={[
+                      tw`px-3 py-1.5 rounded-full`,
+                      { backgroundColor: colors.accent.sage }, // Accent color for credits
+                    ]}>
+                      <Text style={[tw`text-sm font-medium`, { color: colors.text.light }]}>
+                        {userCredits} Credits
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <GeneratorContent
+                  activeMode={activeMode}
+                  setActiveMode={setActiveMode}
+                  user={user}
+                  supabase={supabase}
+                  userCredits={userCredits}
+                  deductCredit={deductCredit}
+                  API_CONFIG={API_CONFIG}
+                  anonymousUsageCount={anonymousUsageCount}
+                  MAX_ANONYMOUS_GENERATIONS={MAX_ANONYMOUS_GENERATIONS}
+                  incrementAnonymousUsage={incrementAnonymousUsage}
+                />
+              </ScrollView>
             )}
             {(activeTab === "history" ||
-              activeTab === "profile" ||
-              activeTab === "credits") && (
+              activeTab === "credits" ||
+              activeTab === "transactions") && (
               <UserDashboard
                 activeTab={activeTab}
                 user={user}
@@ -173,32 +218,48 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                 setActiveMode={setActiveMode}
                 deleteHistoryItem={deleteHistoryItem}
                 supabase={supabase}
-                getThemeColors={getThemeColors}
+                setActiveTab={setActiveTab}
               />
             )}
           </View>
+
           {/* Bottom Navigation */}
-          <View style={tw`flex-row border-t border-slate-200 bg-white`}>
+          <View style={[
+            tw`flex-row`,
+            { 
+              backgroundColor: colors.background.main,
+              borderTopWidth: 1,
+              borderTopColor: colors.border.light,
+              ...commonStyles.shadow.medium,
+            }
+          ]}>
             {[
               { id: "generator", icon: "magic", label: "Generator" },
               { id: "history", icon: "history", label: "History" },
               { id: "credits", icon: "money", label: "Credits" },
-              { id: "profile", icon: "user", label: "Profile" },
+              { id: "transactions", icon: "list", label: "Transactions" },
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.id}
-                style={tw`flex-1 py-4 items-center`}
+                style={[
+                  tw`flex-1 py-4 items-center`,
+                  { backgroundColor: colors.background.main }
+                ]}
                 onPress={() => setActiveTab(tab.id)}
               >
                 <FontAwesome
                   name={tab.icon}
                   size={20}
-                  color={activeTab === tab.id ? "#FB923C" : "#64748B"}
+                  color={activeTab === tab.id ? colors.accent.sage : colors.text.muted}
                 />
                 <Text
-                  style={tw`text-xs mt-1 ${
-                    activeTab === tab.id ? "text-orange-500" : "text-slate-500"
-                  }`}
+                  style={[
+                    tw`text-xs mt-1`,
+                    { 
+                      color: activeTab === tab.id ? colors.accent.sage : colors.text.muted,
+                      fontWeight: activeTab === tab.id ? '600' : '500'
+                    }
+                  ]}
                 >
                   {tab.label}
                 </Text>
@@ -207,7 +268,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
           </View>
         </>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

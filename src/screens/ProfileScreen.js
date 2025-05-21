@@ -8,9 +8,10 @@ import {
   Alert,
   TextInput,
 } from "react-native";
+import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import { useAuth } from "../auth/authcontext";
-import { colors, commonStyles } from "../../theme/colors";
+import { useAuth } from "../hooks/useAuth";
+import { colors, commonStyles } from "../theme/colors";
 
 const Profile = ({ setActiveMode, setShowAuth }) => {
   const { user, supabase } = useAuth();

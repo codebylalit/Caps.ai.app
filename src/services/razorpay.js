@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { RAZORPAY_KEY_ID } from "../config/razorpay";
+import { RAZORPAY_KEY_ID } from '../../config/razorpay';
 
 // Define the type for RazorpayCheckout
 interface RazorpayCheckoutStatic {

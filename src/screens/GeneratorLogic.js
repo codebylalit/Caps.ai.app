@@ -9,11 +9,14 @@ import {
   Image,
   Alert,
   Clipboard,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import { colors, commonStyles } from "../../theme/colors";
+import { useAuth } from "../hooks/useAuth";
+import { colors, commonStyles } from "../theme/colors";
 
 const GeneratorContent = ({
   activeMode,
@@ -25,7 +28,6 @@ const GeneratorContent = ({
   MAX_ANONYMOUS_GENERATIONS,
   incrementAnonymousUsage,
   deductCredit,
-  getThemeColors,
   API_CONFIG,
 }) => {
   const [caption, setCaption] = useState("");
@@ -285,200 +287,230 @@ const GeneratorContent = ({
   };
 
   const renderLengthSelector = () => (
-    <View style={tw`flex-row mb-6 gap-2`}>
-      {Object.entries(lengthConfigs).map(([length, config]) => (
-        <TouchableOpacity
-          key={length}
-          style={tw`flex-1 p-4 rounded-2xl bg-white items-center shadow-sm ${
-            captionLength === length ? getThemeColors().bg : ""
-          }`}
-          onPress={() => setCaptionLength(length)}
-        >
-          <Text
-            style={tw`text-sm font-semibold ${
-              captionLength === length
-                ? getThemeColors().text
-                : "text-slate-800"
-            } mb-1`}
+    <View style={tw`mb-6`}>
+      <Text style={[tw`text-lg font-semibold mb-3`, { color: colors.text.primary }]}>
+        Caption Length
+      </Text>
+      <View style={tw`flex-row justify-between`}>
+        {Object.entries(lengthConfigs).map(([key, config]) => (
+          <TouchableOpacity
+            key={key}
+            style={[
+              tw`flex-1 mx-1 py-3 px-4 rounded-lg items-center`,
+              {
+                backgroundColor: captionLength === key ? colors.accent.sage : colors.background.card,
+                ...commonStyles.shadow.light,
+              },
+            ]}
+            onPress={() => setCaptionLength(key)}
           >
-            {length.charAt(0).toUpperCase() + length.slice(1)}
-          </Text>
-          <Text style={tw`text-xs text-slate-600`}>{config.description}</Text>
-        </TouchableOpacity>
-      ))}
+            <Text
+              style={[
+                tw`text-sm font-medium`,
+                {
+                  color: captionLength === key ? colors.text.light : colors.text.primary,
+                },
+              ]}
+            >
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+            </Text>
+            <Text
+              style={[
+                tw`text-xs mt-1`,
+                {
+                  color: captionLength === key ? colors.text.light : colors.text.muted,
+                },
+              ]}
+            >
+              {config.wordCount} words
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 
   const renderCategorySelector = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={tw`mb-6`}
-    >
-      {(activeMode === "mood" ? moods : niches).map((category) => (
-        <TouchableOpacity
-          key={category}
-          style={tw`px-5 py-3 rounded-full bg-white shadow-sm mr-2 ${
-            selectedCategory === category.toLowerCase()
-              ? getThemeColors().bg
-              : ""
-          }`}
-          onPress={() => setSelectedCategory(category.toLowerCase())}
-        >
-          <Text
-            style={tw`text-sm font-medium ${
-              selectedCategory === category.toLowerCase()
-                ? getThemeColors().text
-                : "text-slate-800"
-            }`}
+    <View style={tw`mb-6`}>
+      <Text style={[tw`text-lg font-semibold mb-3`, { color: colors.text.primary }]}>
+        {activeMode === "mood" ? "Mood" : activeMode === "niche" ? "Niche" : "Category"}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={tw`-mx-4 px-4`}
+      >
+        {(activeMode === "mood" ? moods : niches).map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[
+              tw`mr-3 py-2 px-4 rounded-full`,
+              {
+                backgroundColor: selectedCategory === category.toLowerCase() ? colors.accent.sage : colors.background.card,
+                ...commonStyles.shadow.light,
+              },
+            ]}
+            onPress={() => setSelectedCategory(category.toLowerCase())}
           >
-            {category}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+            <Text
+              style={[
+                tw`text-sm font-medium`,
+                {
+                  color: selectedCategory === category.toLowerCase() ? colors.text.light : colors.text.primary,
+                },
+              ]}
+            >
+              {category}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 
   return (
-    <View style={tw`flex-1`}>
-      <View style={tw`absolute top-0 right-0 -mr-6 opacity-10`}>
-        <FontAwesome
-          name="hashtag"
-          size={100}
-          color={getThemeColors().iconColor}
-        />
-      </View>
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
       <ScrollView
-        style={tw`flex-1 px-4 py-3`}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: commonStyles.spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={tw`mb-6 flex-row items-center justify-between`}>
-          <TouchableOpacity
-            style={tw`flex-row items-center`}
-            onPress={() => setActiveMode(null)}
-          >
-            <FontAwesome
-              name="arrow-left"
-              size={16}
-              color="#1F2937"
-              style={tw`mr-2`}
-            />
-            <Text style={tw`text-base text-slate-800 font-medium`}>Back</Text>
-          </TouchableOpacity>
-          {user ? (
-            <View
-              style={tw`flex-row items-center bg-white p-2 rounded-xl shadow-sm`}
-            >
-              <Text style={tw`text-sm text-slate-600 font-medium`}>
-                Credits:
-              </Text>
-              <Text
-                style={tw`ml-1 text-sm font-semibold ${getThemeColors().text}`}
-              >
-                {userCredits}
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={tw`flex-row items-center bg-white p-2 rounded-xl shadow-sm`}
-            >
-              <Text style={tw`text-sm text-slate-600 font-medium`}>
-                Free Credits:
-              </Text>
-              <Text
-                style={tw`ml-1 text-sm font-semibold ${getThemeColors().text}`}
-              >
-                {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
-              </Text>
-            </View>
-          )}
-        </View>
-
         {renderLengthSelector()}
+        {renderCategorySelector()}
 
-        {activeMode === "image" ? (
-          <TouchableOpacity
-            style={tw`h-48 bg-white rounded-2xl mb-6 justify-center items-center border-2 border-dashed border-green-200`}
-            onPress={pickImage}
-          >
-            {selectedImage ? (
-              <Image
-                source={{ uri: selectedImage.uri }}
-                style={tw`w-full h-full rounded-2xl`}
-              />
-            ) : (
-              <View style={tw`items-center`}>
-                <FontAwesome
-                  name="camera"
-                  size={24}
-                  color={getThemeColors().iconColor}
-                  style={tw`mb-2`}
-                />
-                <Text style={tw`text-base ${getThemeColors().text}`}>
-                  Select Image
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ) : (
-          renderCategorySelector()
-        )}
-
-        <TextInput
-          style={tw`bg-white p-4 rounded-2xl mb-6 text-base text-slate-800 shadow-sm`}
-          value={customInput}
-          onChangeText={setCustomInput}
-          placeholder="Add custom context (optional)"
-          placeholderTextColor="#64748B"
-        />
-
-        {error ? (
-          <Text style={tw`text-red-500 mb-4 text-sm`}>{error}</Text>
-        ) : null}
-
-        {caption ? (
-          <View style={tw`bg-white p-5 rounded-2xl mb-6 shadow-sm`}>
-            <Text style={tw`text-base text-slate-800 mb-4 leading-6`}>
-              {caption}
+        {activeMode === "image" && (
+          <View style={tw`mb-6`}>
+            <Text style={[tw`text-lg font-semibold mb-3`, { color: colors.text.primary }]}>
+              Upload Image
             </Text>
-            <View style={tw`flex-row flex-wrap mb-4 gap-2`}>
-              {hashtags.map((tag, index) => (
-                <Text
-                  key={index}
-                  style={tw`${getThemeColors().text} text-sm font-medium`}
-                >
-                  #{tag}
-                </Text>
-              ))}
-            </View>
             <TouchableOpacity
-              style={tw`p-3 rounded-xl ${getThemeColors().bg} items-center`}
-              onPress={copyToClipboard}
+              style={[
+                tw`h-40 rounded-lg items-center justify-center`,
+                {
+                  backgroundColor: colors.background.card,
+                  borderWidth: 2,
+                  borderColor: colors.border.light,
+                  borderStyle: "dashed",
+                },
+              ]}
+              onPress={pickImage}
             >
-              <Text style={tw`${getThemeColors().text} font-semibold`}>
-                Copy to Clipboard
-              </Text>
+              {selectedImage ? (
+                <Image
+                  source={{ uri: selectedImage.uri }}
+                  style={tw`w-full h-full rounded-lg`}
+                />
+              ) : (
+                <View style={tw`items-center`}>
+                  <FontAwesome
+                    name="image"
+                    size={32}
+                    color={colors.text.muted}
+                    style={tw`mb-2`}
+                  />
+                  <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
+                    Tap to upload image
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
-        ) : null}
+        )}
+
+        <View style={tw`mb-6`}>
+          <Text style={[tw`text-lg font-semibold mb-3`, { color: colors.text.primary }]}>
+            Additional Context
+          </Text>
+          <TextInput
+            style={[
+              tw`p-4 rounded-lg text-base`,
+              {
+                backgroundColor: colors.background.card,
+                color: colors.text.primary,
+                ...commonStyles.shadow.light,
+              },
+            ]}
+            placeholder="Add any specific details or context..."
+            placeholderTextColor={colors.text.muted}
+            multiline
+            numberOfLines={4}
+            value={customInput}
+            onChangeText={setCustomInput}
+          />
+        </View>
+
         <TouchableOpacity
-          style={tw`${getThemeColors().bg} p-4 rounded-2xl items-center mb-6 ${
-            loading ? "opacity-70" : ""
-          }`}
+          style={[
+            tw`py-4 rounded-lg items-center`,
+            {
+              backgroundColor: colors.accent.sage,
+              ...commonStyles.shadow.medium,
+            },
+          ]}
           onPress={generateContent}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={getThemeColors().iconColor} />
+            <ActivityIndicator color={colors.text.light} />
           ) : (
-            <Text style={tw`${getThemeColors().text} text-base font-semibold`}>
-              Generate Caption
+            <Text style={[tw`text-lg font-semibold`, { color: colors.text.light }]}>
+              Generate Content
             </Text>
           )}
         </TouchableOpacity>
+
+        {error && (
+          <Text style={[tw`text-red-500 mt-4 text-center`, { color: colors.status.error }]}>
+            {error}
+          </Text>
+        )}
+
+        {caption && (
+          <View style={tw`mt-8`}>
+            <View style={tw`flex-row justify-between items-center mb-4`}>
+              <Text style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}>
+                Generated Content
+              </Text>
+              <TouchableOpacity
+                style={[
+                  tw`py-2 px-4 rounded-lg`,
+                  { backgroundColor: colors.accent.sage },
+                  commonStyles.shadow.light,
+                ]}
+                onPress={copyToClipboard}
+              >
+                <Text style={{ color: colors.text.light }}>Copy All</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={[
+                tw`p-4 rounded-lg mb-4`,
+                { backgroundColor: colors.background.card },
+                commonStyles.shadow.light,
+              ]}
+            >
+              <Text style={[tw`text-base`, { color: colors.text.primary }]}>
+                {caption}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                tw`p-4 rounded-lg`,
+                { backgroundColor: colors.background.card },
+                commonStyles.shadow.light,
+              ]}
+            >
+              <Text style={[tw`text-base`, { color: colors.text.primary }]}>
+                {hashtags.map((tag) => `#${tag}`).join(" ")}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

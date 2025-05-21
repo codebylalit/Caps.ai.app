@@ -11,15 +11,18 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   Image,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import tw from "../tw-rn";
+import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import AuthScreen from "./auth/AuthScreen";
-import OnboardingScreen from "./onboarding/OnboardingScreen";
-import ProfileScreen from "./user/ProfileScreen";
-import { useAuth } from "./auth/authcontext";
-import { useUsageTracking } from "./freecredits";
+import AuthScreen from "./AuthScreen";
+import OnboardingScreen from "./OnboardingScreen";
+import ProfileScreen from "./ProfileScreen";
+import { useAuth } from "../hooks/useAuth";
+import { useUsageTracking } from "../hooks/useFreeCredits";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, commonStyles } from "../theme/colors";
 
