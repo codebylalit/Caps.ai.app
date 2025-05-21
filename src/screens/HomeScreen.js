@@ -180,7 +180,7 @@ const HomeScreen = ({ setActiveMode }) => {
           <Text
             style={{
               color: colors.text.light,
-              fontSize: 15,
+              fontSize: 16,
               opacity: 0.95,
               fontWeight: "500",
             }}
@@ -302,7 +302,7 @@ const HomeScreen = ({ setActiveMode }) => {
                 style={{
                   flex: 1,
                   color: colors.text.light,
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: "500",
                 }}
               />
@@ -322,7 +322,7 @@ const HomeScreen = ({ setActiveMode }) => {
               <Text
                 style={{
                   color: colors.text.primary,
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: "800",
                   letterSpacing: 0.5,
                 }}
@@ -371,7 +371,7 @@ const HomeScreen = ({ setActiveMode }) => {
             <Text
               style={{
                 color: colors.text.primary,
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: "800",
                 marginBottom: commonStyles.spacing.lg,
                 letterSpacing: 0.5,
@@ -501,7 +501,7 @@ const HomeScreen = ({ setActiveMode }) => {
                 <Text
                   style={{
                     color: colors.text.primary,
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: "800",
                     marginBottom: 8,
                   }}

@@ -456,7 +456,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
           <Text style={[tw`text-3xl font-bold`, { color: colors.accent.sage }]}>
             {credits}
           </Text>
-          <Text style={[tw`text-sm mt-1`, { color: colors.text.secondary }]}>
+          <Text style={[tw`text-base mt-1`, { color: colors.text.secondary }]}>
             Credits remaining
           </Text>
         </View>
@@ -487,26 +487,26 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               <View>
                 <Text
                   style={[
-                    tw`text-lg font-semibold`,
+                    tw`text-xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   {pkg.credits} Credits
                 </Text>
-                <Text style={[tw`text-sm`, { color: colors.text.secondary }]}>
+                <Text style={[tw`text-base`, { color: colors.text.secondary }]}>
                   {pkg.label}
                 </Text>
               </View>
               <View style={tw`items-end`}>
                 <Text
-                  style={[tw`text-lg font-bold`, { color: colors.accent.sage }]}
+                  style={[tw`text-xl font-bold`, { color: colors.accent.sage }]}
                 >
                   ₹{pkg.price}
                 </Text>
                 {pkg.discount && (
                   <Text
                     style={[
-                      tw`text-sm line-through`,
+                      tw`text-base line-through`,
                       { color: colors.text.muted },
                     ]}
                   >
@@ -524,7 +524,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               >
                 <Text
                   style={[
-                    tw`text-xs font-medium`,
+                    tw`text-sm font-medium`,
                     { color: colors.text.light },
                   ]}
                 >
@@ -542,7 +542,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                 <ActivityIndicator color={colors.accent.sage} />
                 <Text
                   style={[
-                    tw`text-center mt-1`,
+                    tw`text-base text-center mt-1`,
                     { color: colors.text.secondary },
                   ]}
                 >
@@ -562,7 +562,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         </Text>
         {transactions.length > 0 && (
           <TouchableOpacity onPress={() => setActiveTab("transactions")}>
-            <Text style={[tw`text-sm`, { color: colors.accent.sage }]}>
+            <Text style={[tw`text-base`, { color: colors.accent.sage }]}>
               View All 
             </Text>
           </TouchableOpacity>
@@ -577,7 +577,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
             commonStyles.shadow.light,
           ]}
         >
-          <Text style={[tw`text-center`, { color: colors.text.secondary }]}>
+          <Text style={[tw`text-base text-center`, { color: colors.text.secondary }]}>
             No transaction history found
           </Text>
         </View>
@@ -601,14 +601,14 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                 >
                   {transaction.credits} Credits
                 </Text>
-                <Text style={[tw`text-sm`, { color: colors.text.secondary }]}>
+                <Text style={[tw`text-base`, { color: colors.text.secondary }]}>
                   ₹{transaction.amount}
                 </Text>
               </View>
               <View>
                 <Text
                   style={[
-                    tw`text-sm font-medium`,
+                    tw`text-base font-medium`,
                     {
                       color:
                         transaction.status === "success"
@@ -622,7 +622,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                   {transaction.status.charAt(0).toUpperCase() +
                     transaction.status.slice(1)}
                 </Text>
-                <Text style={[tw`text-xs`, { color: colors.text.muted }]}>
+                <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
                   {new Date(transaction.created_at).toLocaleDateString()}
                 </Text>
               </View>

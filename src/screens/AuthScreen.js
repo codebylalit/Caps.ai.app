@@ -175,7 +175,7 @@ const AuthScreen = ({ onClose }) => {
         <TextInput
           style={{
             color: colors.text.primary,
-            fontSize: 17,
+            fontSize: 16,
             paddingHorizontal: 16,
             paddingVertical: 12,
           }}
@@ -217,7 +217,7 @@ const AuthScreen = ({ onClose }) => {
         <TextInput
           style={{
             color: colors.text.primary,
-            fontSize: 17,
+            fontSize: 16,
             paddingHorizontal: 16,
             paddingVertical: 12,
           }}
@@ -261,6 +261,7 @@ const AuthScreen = ({ onClose }) => {
             color: colors.accent.orange,
             textAlign: "center",
             fontWeight: "700",
+            fontSize: 16,
           }}
         >
           {isSignUp
@@ -295,7 +296,7 @@ const AuthScreen = ({ onClose }) => {
             ]}
           >
             <TextInput
-              style={{ flex: 1, color: colors.text.primary, fontSize: 17 }}
+              style={{ flex: 1, color: colors.text.primary, fontSize: 16 }}
               placeholder="Enter your email"
               placeholderTextColor={colors.text.muted}
               keyboardType="email-address"
@@ -419,6 +420,7 @@ const AuthScreen = ({ onClose }) => {
                   color: colors.accent.orange,
                   textAlign: "center",
                   fontWeight: "700",
+                  fontSize: 16,
                 }}
               >
                 Change Email
@@ -436,6 +438,7 @@ const AuthScreen = ({ onClose }) => {
                     resendTimer > 0 ? colors.text.muted : colors.accent.orange,
                   textAlign: "center",
                   fontWeight: "700",
+                  fontSize: 16,
                 }}
               >
                 {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
@@ -467,7 +470,7 @@ const AuthScreen = ({ onClose }) => {
         >
           <Text
             style={{
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: "800",
               color: colors.text.primary,
               letterSpacing: -1,

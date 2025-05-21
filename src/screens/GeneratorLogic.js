@@ -288,7 +288,7 @@ const GeneratorContent = ({
 
   const renderLengthSelector = () => (
     <View style={tw`mb-6`}>
-      <Text style={[tw`text-lg font-semibold mb-3`, { color: colors.text.primary }]}>
+      <Text style={[tw`text-xl font-semibold mb-3`, { color: colors.text.primary }]}>
         Caption Length
       </Text>
       <View style={tw`flex-row justify-between`}>
@@ -306,7 +306,7 @@ const GeneratorContent = ({
           >
             <Text
               style={[
-                tw`text-sm font-medium`,
+                tw`text-base font-medium`,
                 {
                   color: captionLength === key ? colors.text.light : colors.text.primary,
                 },
@@ -316,7 +316,7 @@ const GeneratorContent = ({
             </Text>
             <Text
               style={[
-                tw`text-xs mt-1`,
+                tw`text-sm mt-1`,
                 {
                   color: captionLength === key ? colors.text.light : colors.text.muted,
                 },

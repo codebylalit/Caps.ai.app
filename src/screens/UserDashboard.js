@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Clipboard } from "react-native";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
@@ -20,6 +20,7 @@ const UserDashboard = ({
 
   const [transactions, setTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   const fetchTransactions = async () => {
     if (!user || !supabase) return;
@@ -41,6 +42,13 @@ const UserDashboard = ({
     }
   };
 
+  const handleCopy = async (item) => {
+    const textToCopy = `${item.caption}\n\n${item.hashtags ? item.hashtags.map(tag => `#${tag}`).join(' ') : ''}`;
+    await Clipboard.setString(textToCopy);
+    setCopiedId(item.id);
+    setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
+  };
+
   useEffect(() => {
     fetchTransactions();
   }, [user, supabase]);
@@ -50,7 +58,7 @@ const UserDashboard = ({
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
         <View style={tw`flex-1 justify-center items-center p-4`}>
-          <Text style={[tw`text-lg mb-4 text-center`, { color: colors.text.secondary }]}>
+          <Text style={[tw`text-xl mb-4 text-center`, { color: colors.text.secondary }]}>
             Please sign in to view your dashboard
           </Text>
           <TouchableOpacity
@@ -90,14 +98,14 @@ const UserDashboard = ({
               <View style={tw`flex-1`}>
                 <Text
                   style={[
-                    tw`text-xl font-semibold`,
+                    tw`text-2xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   Generation History
                 </Text>
                 <Text
-                  style={[tw`text-sm mt-1`, { color: colors.text.secondary }]}
+                  style={[tw`text-base mt-1`, { color: colors.text.secondary }]}
                 >
                   Your past generations and captions
                 </Text>
@@ -130,8 +138,11 @@ const UserDashboard = ({
                   color={colors.text.muted}
                   style={tw`mb-3`}
                 />
-                <Text style={[tw`text-center`, { color: colors.text.muted }]}>
-                  No generation history found
+                <Text style={[tw`text-lg font-semibold mb-1`, { color: colors.text.primary }]}>
+                  No History Yet
+                </Text>
+                <Text style={[tw`text-sm text-center`, { color: colors.text.secondary }]}>
+                  Your generated captions and hashtags will appear here
                 </Text>
               </View>
             ) : (
@@ -139,51 +150,95 @@ const UserDashboard = ({
                 <View
                   key={item.id}
                   style={[
-                    tw`p-4 rounded-lg mb-4`,
+                    tw`p-3 rounded-lg mb-3`,
                     { backgroundColor: colors.background.card },
                     commonStyles.shadow.light,
                   ]}
                 >
-                  <View style={tw`flex-row justify-between items-start mb-2`}>
-                    <View style={tw`flex-1 mr-4`}>
+                  <View style={tw`flex-row justify-between items-start`}>
+                    <View style={tw`flex-1 mr-2`}>
+                      {/* <View style={tw`flex-row items-center mb-1`}>
+                        <FontAwesome
+                          name={item.mode === "mood" ? "magic" : item.mode === "niche" ? "hashtag" : "image"}
+                          size={14}
+                          color={colors.accent.sage}
+                          style={tw`mr-1`}
+                        />
+                        <Text
+                          style={[
+                            tw`text-xs font-medium`,
+                            { color: colors.accent.sage },
+                          ]}
+                        >
+                          {item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} Mode
+                        </Text>
+                      </View> */}
                       <Text
-                        style={[tw`text-base`, { color: colors.text.primary }]}
+                        style={[tw`text-base font-medium mb-1`, { color: colors.text.primary }]}
                       >
                         {item.caption}
                       </Text>
-                      <Text
-                        style={[
-                          tw`text-sm mt-2`,
-                          { color: colors.text.secondary },
-                        ]}
-                      >
-                        {new Date(item.created_at).toLocaleString()}
-                      </Text>
                       {item.hashtags && (
+                        <View style={tw`flex-row flex-wrap`}>
+                          {item.hashtags.map((tag, index) => (
+                            <View
+                              key={index}
+                              style={[
+                                tw`px-1.5 py-0.5 rounded-full mr-1 mb-1`,
+                                { backgroundColor: colors.accent.sage + '20' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  tw`text-xs`,
+                                  { color: colors.accent.sage },
+                                ]}
+                              >
+                                #{tag}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                      <View style={tw`flex-row items-center justify-between mt-1`}>
                         <Text
                           style={[
-                            tw`text-sm mt-1`,
+                            tw`text-xs flex-1`,
                             { color: colors.text.muted },
                           ]}
                         >
-                          {item.hashtags.map((tag) => `#${tag}`).join(" ")}
+                          {new Date(item.created_at).toLocaleString()}
                         </Text>
-                      )}
+                        <View style={tw`flex-row ml-2`}>
+                          <TouchableOpacity
+                            style={[
+                              tw`w-6 h-6 items-center justify-center rounded-full mr-1`,
+                              { backgroundColor: colors.accent.sage + '20' },
+                            ]}
+                            onPress={() => handleCopy(item)}
+                          >
+                            <FontAwesome
+                              name={copiedId === item.id ? "check" : "copy"}
+                              size={11}
+                              color={colors.accent.sage}
+                            />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              tw`w-6 h-6 items-center justify-center rounded-full`,
+                              { backgroundColor: colors.status.error + '20' },
+                            ]}
+                            onPress={() => deleteHistoryItem(item.id)}
+                          >
+                            <FontAwesome
+                              name="trash"
+                              size={11}
+                              color={colors.status.error}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
                     </View>
-                    <TouchableOpacity
-                      style={[
-                        tw`w-8 h-8 items-center justify-center rounded-full`,
-                        { backgroundColor: colors.status.error },
-                        commonStyles.shadow.light,
-                      ]}
-                      onPress={() => deleteHistoryItem(item.id)}
-                    >
-                      <FontAwesome
-                        name="trash"
-                        size={14}
-                        color={colors.text.light}
-                      />
-                    </TouchableOpacity>
                   </View>
                 </View>
               ))
@@ -195,7 +250,7 @@ const UserDashboard = ({
           <View>
             <View
               style={[
-                tw`flex-row items-center justify-between py-3 mb-2`,
+                tw`flex-row items-center justify-between mb-2`,
                 { backgroundColor: colors.background.main },
               ]}
             >
@@ -245,7 +300,7 @@ const UserDashboard = ({
               <View style={tw`flex-1`}>
                 <Text
                   style={[
-                    tw`text-xl font-semibold`,
+                    tw`text-2xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
@@ -270,7 +325,7 @@ const UserDashboard = ({
             {loadingTransactions ? (
               <View style={tw`flex-1 justify-center items-center`}>
                 <ActivityIndicator size="large" color={colors.accent.sage} />
-                <Text style={[tw`mt-4`, { color: colors.text.secondary }]}>
+                <Text style={[tw`text-base mt-4`, { color: colors.text.secondary }]}>
                   Loading Transactions...
                 </Text>
               </View>
@@ -283,7 +338,7 @@ const UserDashboard = ({
                 ]}
               >
                 <Text
-                  style={[tw`text-center`, { color: colors.text.secondary }]}
+                  style={[tw`text-base text-center`, { color: colors.text.secondary }]}
                 >
                   No transaction history found
                 </Text>
@@ -309,7 +364,7 @@ const UserDashboard = ({
                         {transaction.credits} Credits
                       </Text>
                       <Text
-                        style={[tw`text-sm`, { color: colors.text.secondary }]}
+                        style={[tw`text-base`, { color: colors.text.secondary }]}
                       >
                         ₹{transaction.amount}
                       </Text>
@@ -317,7 +372,7 @@ const UserDashboard = ({
                     <View>
                       <Text
                         style={[
-                          tw`text-sm font-medium`,
+                          tw`text-base font-medium`,
                           {
                             color:
                               transaction.status === "success"
@@ -331,7 +386,7 @@ const UserDashboard = ({
                         {transaction.status.charAt(0).toUpperCase() +
                           transaction.status.slice(1)}
                       </Text>
-                      <Text style={[tw`text-xs`, { color: colors.text.muted }]}>
+                      <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </Text>
                     </View>
