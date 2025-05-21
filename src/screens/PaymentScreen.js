@@ -441,7 +441,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     <View style={{ flex: 1 }}>
       <View
         style={[
-          tw`p-4 rounded-lg mb-6`,
+          tw`rounded-lg mb-4`,
           { backgroundColor: colors.background.card },
           commonStyles.shadow.light,
         ]}
@@ -462,7 +462,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         </View>
       </View>
 
-      <View style={tw`mb-6`}>
+      <View style={tw`mb-4`}>
         <Text
           style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}
         >
