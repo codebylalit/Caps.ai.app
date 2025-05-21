@@ -9,8 +9,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import tw from '../../tw-rn';
+import tw from 'twrnc';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { colors, commonStyles } from '../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -24,30 +26,21 @@ const OnboardingScreen = ({ onComplete }) => {
       title: "Welcome to Caps.ai",
       description: "Your AI-powered caption generator for social media success",
       icon: "magic",
-      color: "violet",
-      bgColor: "bg-violet-50",
-      iconColor: "text-violet-500",
-      borderColor: "border-violet-200"
+      gradient: [colors.accent.sage, colors.accent.olive],
     },
     {
       id: 2,
       title: "Smart Caption Generation",
       description: "Create engaging captions that connect with your audience",
       icon: "comment",
-      color: "orange",
-      bgColor: "bg-orange-50",
-      iconColor: "text-orange-500",
-      borderColor: "border-orange-200"
+      gradient: [colors.accent.orange, colors.accent.sage],
     },
     {
       id: 3,
       title: "Ready to Start?",
       description: "Join thousands of creators making their content stand out",
       icon: "rocket",
-      color: "emerald",
-      bgColor: "bg-emerald-50",
-      iconColor: "text-emerald-500",
-      borderColor: "border-emerald-200"
+      gradient: [colors.accent.olive, colors.accent.sage],
     }
   ];
 
@@ -70,23 +63,63 @@ const OnboardingScreen = ({ onComplete }) => {
     const scale = scrollX.interpolate({
       inputRange,
       outputRange: [0.8, 1, 0.8],
+      extrapolate: 'clamp',
+    });
+
+    const opacity = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.5, 1, 0.5],
+      extrapolate: 'clamp',
     });
 
     return (
       <View style={[tw`flex-1 items-center justify-center px-8`, { width }]}>
-        <View style={tw`${item.bgColor} p-8 rounded-full mb-8 border-2 ${item.borderColor}`}>
-          <FontAwesome
-            name={item.icon}
-            size={60}
-            style={tw`${item.iconColor}`}
-          />
-        </View>
-        <Text style={tw`text-3xl font-bold text-neutral-800 text-center mb-4`}>
-          {item.title}
-        </Text>
-        <Text style={tw`text-lg text-neutral-600 text-center leading-relaxed`}>
-          {item.description}
-        </Text>
+        <Animated.View 
+          style={[
+            tw`items-center justify-center mb-12`,
+            {
+              opacity,
+              transform: [{ scale }],
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={item.gradient}
+            style={[
+              tw`w-32 h-32 rounded-3xl items-center justify-center mb-8`,
+              commonStyles.shadow.large,
+            ]}
+          >
+            <FontAwesome
+              name={item.icon}
+              size={50}
+              color={colors.text.light}
+            />
+          </LinearGradient>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            tw`items-center`,
+            {
+              opacity,
+              transform: [{ scale }],
+            }
+          ]}
+        >
+          <Text style={[
+            tw`text-3xl font-bold text-center mb-4`,
+            { color: colors.text.primary }
+          ]}>
+            {item.title}
+          </Text>
+          <Text style={[
+            tw`text-lg text-center leading-relaxed px-4`,
+            { color: colors.text.secondary }
+          ]}>
+            {item.description}
+          </Text>
+        </Animated.View>
       </View>
     );
   };
@@ -94,23 +127,45 @@ const OnboardingScreen = ({ onComplete }) => {
   const renderPagination = () => {
     return (
       <View style={tw`flex-row justify-center items-center mb-8`}>
-        {slides.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              tw`w-2 h-2 rounded-full mx-1`,
-              currentIndex === index
-                ? tw`bg-primary-500 w-4`
-                : tw`bg-neutral-300`,
-            ]}
-          />
-        ))}
+        {slides.map((_, index) => {
+          const inputRange = [
+            (index - 1) * width,
+            index * width,
+            (index + 1) * width,
+          ];
+
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.3, 1, 0.3],
+            extrapolate: 'clamp',
+          });
+
+          const scale = scrollX.interpolate({
+            inputRange,
+            outputRange: [1, 1.5, 1], // Scale up the active dot
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <Animated.View
+              key={index}
+              style={[
+                tw`w-2 h-2 rounded-full mx-1`,
+                {
+                  opacity,
+                  transform: [{ scale }],
+                  backgroundColor: colors.accent.sage,
+                }
+              ]}
+            />
+          );
+        })}
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white`}>
+    <SafeAreaView style={[tw`flex-1`, { backgroundColor: colors.background.main }]}>
       <View style={tw`flex-1`}>
         <Animated.FlatList
           data={slides}
@@ -121,7 +176,7 @@ const OnboardingScreen = ({ onComplete }) => {
           renderItem={renderSlide}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: false }
+            { useNativeDriver: false } // Set useNativeDriver to false for width animation
           )}
           onMomentumScrollEnd={(event) => {
             const newIndex = Math.round(
@@ -138,7 +193,9 @@ const OnboardingScreen = ({ onComplete }) => {
             onPress={handleComplete}
             style={tw`py-3 px-6`}
           >
-            <Text style={tw`text-neutral-500 font-medium`}>Skip</Text>
+            <Text style={[tw`font-medium`, { color: colors.text.secondary }]}>
+              Skip
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -147,12 +204,17 @@ const OnboardingScreen = ({ onComplete }) => {
                 handleComplete();
               } else {
                 setCurrentIndex(currentIndex + 1);
-                scrollX.setValue((currentIndex + 1) * width);
+                // We can keep this for now, it doesn't drive the problematic animation
+                // scrollX.setValue((currentIndex + 1) * width);
               }
             }}
-            style={tw`bg-primary-500 py-3 px-6 rounded-full shadow-sm`}
+            style={[
+              tw`py-3 px-8 rounded-full`,
+              { backgroundColor: colors.accent.sage },
+              commonStyles.shadow.medium,
+            ]}
           >
-            <Text style={tw`text-white font-medium`}>
+            <Text style={[tw`font-semibold text-base`, { color: colors.text.light }]}>
               {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
             </Text>
           </TouchableOpacity>
