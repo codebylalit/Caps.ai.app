@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const useUsageTracking = () => {
   const [anonymousUsageCount, setAnonymousUsageCount] = useState(0);
-  const MAX_ANONYMOUS_GENERATIONS = 10;
+  const MAX_ANONYMOUS_GENERATIONS = 5;
   const RESET_INTERVAL_HOURS = 24;
 
   const loadAnonymousUsage = useCallback(async () => {

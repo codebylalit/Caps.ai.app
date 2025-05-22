@@ -157,7 +157,18 @@ const AuthScreen = ({ onClose }) => {
       if (result.error) throw result.error;
 
       if (result.data.user) {
-        await handleAuthSuccess(result.data.user);
+        try {
+          await handleAuthSuccess(result.data.user);
+        } catch (error) {
+          // Handle device fingerprinting error
+          if (error.message.includes('device is already associated')) {
+            showNotification('error', error.message);
+            // Sign out the user since we can't create their profile
+            await supabase.auth.signOut();
+            return;
+          }
+          throw error;
+        }
       }
     } catch (error) {
       console.error("Auth error:", error);

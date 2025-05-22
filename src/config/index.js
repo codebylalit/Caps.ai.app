@@ -45,7 +45,7 @@ export const APP_THEME = {
 
 export const CONSTANTS = {
   MAX_ANONYMOUS_GENERATIONS: 3,
-  INITIAL_CREDITS: 10,
+  INITIAL_CREDITS: 5,
   STORAGE_KEYS: {
     ANONYMOUS_USAGE: '@anonymous_usage_count',
     USER_PREFERENCES: '@user_preferences',

@@ -459,6 +459,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                           MAX_ANONYMOUS_GENERATIONS={MAX_ANONYMOUS_GENERATIONS}
                           incrementAnonymousUsage={incrementAnonymousUsage}
                           themeColor={themeColor}
+                          setShowAuth={setShowAuth}
                         />
                       </ScrollView>
                     </>

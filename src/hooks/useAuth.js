@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 import React, { createContext, useContext, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { checkDeviceFingerprint, associateDeviceWithUser } from '../utils/deviceFingerprint';
 
 // TODO: Replace these with your new Supabase project credentials
 const supabaseUrl = "https://zkojmfnmjqqvbrtbteyu.supabase.co";
@@ -48,14 +49,24 @@ const AuthProvider = ({ children }) => {
 
       if (error) {
         if (error.code === 'PGRST116') {
+          // Check device fingerprint before creating new profile
+          const canCreateAccount = await checkDeviceFingerprint(supabase);
+          if (!canCreateAccount) {
+            throw new Error('This device is already associated with another account. Please use a different device or contact support.');
+          }
+
           // Profile doesn't exist, create it
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
-            .insert([{ id: userId, credits: 10 }])
+            .insert([{ id: userId, credits: 5 }])
             .select()
             .single();
 
           if (createError) throw createError;
+
+          // Associate device with new user
+          await associateDeviceWithUser(supabase, userId);
+          
           setUserProfile(newProfile);
           return newProfile;
         }
@@ -66,7 +77,7 @@ const AuthProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error fetching/creating profile:', error.message);
-      return null;
+      throw error; // Propagate error to handle it in the UI
     }
   };
 

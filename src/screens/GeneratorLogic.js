@@ -12,13 +12,118 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import { colors, commonStyles } from "../theme/colors";
+
+const ThemedAlert = ({ visible, title, message, buttons, onClose }) => {
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [scaleAnim] = useState(new Animated.Value(0.8));
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={tw`flex-1 bg-black/20 justify-center items-center`}>
+          <TouchableWithoutFeedback>
+            <Animated.View
+              style={[
+                tw`w-[300px] rounded-xl p-5`,
+                {
+                  backgroundColor: colors.background.card,
+                  opacity: fadeAnim,
+                  transform: [{ scale: scaleAnim }],
+                },
+                commonStyles.shadow.light,
+              ]}
+            >
+              <Text
+                style={[
+                  tw`text-xl font-bold mb-1.5 text-center`,
+                  { color: colors.text.primary },
+                ]}
+              >
+                {title}
+              </Text>
+              <Text
+                style={[
+                  tw`text-sm mb-5 text-center`,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                {message}
+              </Text>
+              <View style={tw`flex-row gap-2`}>
+                {buttons.map((button, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      onClose();
+                      button.onPress?.();
+                    }}
+                    style={[
+                      tw`flex-1 py-2.5 rounded-lg items-center`,
+                      {
+                        backgroundColor: button.style === "default" 
+                          ? colors.accent.sage 
+                          : 'transparent',
+                        borderWidth: button.style === "cancel" ? 1 : 0,
+                        borderColor: colors.accent.sage + "30",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        tw`text-sm font-medium`,
+                        {
+                          color: button.style === "default"
+                            ? colors.text.light
+                            : colors.text.primary,
+                        },
+                      ]}
+                    >
+                      {button.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+};
 
 const GeneratorContent = ({
   activeMode,
@@ -32,6 +137,7 @@ const GeneratorContent = ({
   deductCredit,
   API_CONFIG,
   themeColor,
+  setShowAuth,
 }) => {
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,9 +147,9 @@ const GeneratorContent = ({
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("happy");
   const [error, setError] = useState("");
-  const [showAuth, setShowAuth] = useState(false);
   const [showAdditionalContext, setShowAdditionalContext] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+  const [alertConfig, setAlertConfig] = useState(null);
 
   const moods = [
     "Happy",
@@ -91,8 +197,16 @@ const GeneratorContent = ({
 
   const lengthConfigs = {
     short: { description: "1-2 sentences", wordCount: "5-10", hashtagCount: 7 },
-    medium: { description: "2-3 sentences", wordCount: "10-15", hashtagCount: 14 },
-    long: { description: "3-4 sentences", wordCount: "15-30", hashtagCount: 21 },
+    medium: {
+      description: "2-3 sentences",
+      wordCount: "10-15",
+      hashtagCount: 14,
+    },
+    long: {
+      description: "3-4 sentences",
+      wordCount: "15-30",
+      hashtagCount: 21,
+    },
   };
 
   const saveToHistory = async (captionText, hashtagList) => {
@@ -142,12 +256,12 @@ const GeneratorContent = ({
 
       if (!result.canceled) {
         const selectedAsset = result.assets[0];
-        
+
         // Validate image size (max 10MB)
         const response = await fetch(selectedAsset.uri);
         const blob = await response.blob();
         const sizeInMB = blob.size / (1024 * 1024);
-        
+
         if (sizeInMB > 10) {
           setError("Image size should be less than 10MB");
           return;
@@ -169,11 +283,17 @@ const GeneratorContent = ({
   };
 
   const copyToClipboard = () => {
-    const text = activeMode === "niche" 
-      ? hashtags.join(' ')
-      : `${caption}\n\n${hashtags.join(', ')}`;
+    const text =
+      activeMode === "niche"
+        ? hashtags.join(" ")
+        : `${caption}\n\n${hashtags.join(", ")}`;
     Clipboard.setString(text);
-    Alert.alert("Copied!", activeMode === "niche" ? "Hashtags copied to clipboard" : "Caption and hashtags copied to clipboard");
+    Alert.alert(
+      "Copied!",
+      activeMode === "niche"
+        ? "Hashtags copied to clipboard"
+        : "Caption and hashtags copied to clipboard"
+    );
   };
 
   const analyzeImage = async (imageUri) => {
@@ -199,9 +319,9 @@ const GeneratorContent = ({
                   {
                     inline_data: {
                       mime_type: "image/jpeg",
-                      data: base64
-                    }
-                  }
+                      data: base64,
+                    },
+                  },
                 ],
               },
             ],
@@ -226,22 +346,45 @@ const GeneratorContent = ({
 
   const generateContent = async () => {
     if (!user && anonymousUsageCount >= MAX_ANONYMOUS_GENERATIONS) {
-      Alert.alert(
-        "Free Limit Reached",
-        "You've reached the limit of 10 free generations. Please sign in to continue using the app.",
-        [
-          { text: "Sign In", onPress: () => setShowAuth(true) },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      setAlertConfig({
+        visible: true,
+        title: "Need More Credits!",
+        message: "You've used all 5 free generations. Sign up to get 5 more free credits",
+        buttons: [
+          {
+            text: "Close",
+            style: "cancel",
+          },
+          {
+            text: "Sign Up",
+            style: "default",
+            onPress: () => {
+              setAlertConfig(null);
+              setShowAuth(true);
+            },
+          },
+        ],
+      });
       return;
     }
 
     if (user && userCredits <= 0) {
-      Alert.alert(
-        "No Credits",
-        "You don't have enough credits. Please purchase more credits to continue."
-      );
+      setAlertConfig({
+        visible: true,
+        title: "💎 Out of Credits",
+        message: "You've used all your credits. Purchase more to continue creating amazing content!",
+        buttons: [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Buy Credits",
+            style: "default",
+            onPress: () => setActiveMode("dashboard:credits"),
+          },
+        ],
+      });
       return;
     }
 
@@ -288,7 +431,9 @@ const GeneratorContent = ({
               - Authentic storytelling and vulnerability
               - Relatable experiences and feelings
               - Positive and uplifting tone
-              Additional context: ${customInput || "Share a moment that captures this mood"}`;
+              Additional context: ${
+                customInput || "Share a moment that captures this mood"
+              }`;
 
             case "image":
               return `${basePrompt}
@@ -302,7 +447,9 @@ const GeneratorContent = ({
               4. Maintains a natural, conversational tone
               5. Includes a subtle call to action
 
-              Additional context: ${customInput || "Share what makes this image special"}
+              Additional context: ${
+                customInput || "Share what makes this image special"
+              }
 
               Guidelines:
               - Keep the tone authentic and personal
@@ -350,7 +497,8 @@ const GeneratorContent = ({
         if (!response.ok) throw new Error("Generation failed");
 
         const data = await response.json();
-        const generatedCaption = data.candidates[0].content.parts[0].text.trim();
+        const generatedCaption =
+          data.candidates[0].content.parts[0].text.trim();
         setCaption(generatedCaption);
       } else {
         // For Hashtag Pro mode, set empty caption
@@ -425,7 +573,9 @@ const GeneratorContent = ({
               {
                 parts: [
                   {
-                    text: generateHashtagPrompt() + "\n\nReturn ONLY hashtags in this format: #tag1 #tag2 #tag3 #tag4 #tag5",
+                    text:
+                      generateHashtagPrompt() +
+                      "\n\nReturn ONLY hashtags in this format: #tag1 #tag2 #tag3 #tag4 #tag5",
                   },
                 ],
               },
@@ -441,25 +591,29 @@ const GeneratorContent = ({
       );
 
       const hashtagData = await hashtagResponse.json();
-      const hashtagText = hashtagData.candidates[0].content.parts[0].text.trim();
-      
+      const hashtagText =
+        hashtagData.candidates[0].content.parts[0].text.trim();
+
       // Extract hashtags from the response and limit to the selected length
-      const generatedHashtags = hashtagText
-        .match(/#\w+/g) || []; // Match all hashtags starting with #
-      
+      const generatedHashtags = hashtagText.match(/#\w+/g) || []; // Match all hashtags starting with #
+
       // Limit hashtags based on selected length
       const maxHashtags = lengthConfigs[captionLength].hashtagCount;
       const limitedHashtags = generatedHashtags.slice(0, maxHashtags);
 
       // Remove '#' for Smart Caption and Image-based Caption modes
-      const processedHashtags = activeMode === "niche" 
-        ? limitedHashtags 
-        : limitedHashtags.map(tag => tag.replace('#', ''));
+      const processedHashtags =
+        activeMode === "niche"
+          ? limitedHashtags
+          : limitedHashtags.map((tag) => tag.replace("#", ""));
 
       setHashtags(processedHashtags);
 
       if (user) {
-        await saveToHistory(activeMode === "niche" ? "" : caption, processedHashtags);
+        await saveToHistory(
+          activeMode === "niche" ? "" : caption,
+          processedHashtags
+        );
       }
     } catch (error) {
       console.error("Generation error:", error);
@@ -475,7 +629,9 @@ const GeneratorContent = ({
       } else {
         await incrementAnonymousUsage();
       }
-      setError(error.message || "Failed to generate content. Please try again.");
+      setError(
+        error.message || "Failed to generate content. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -496,9 +652,11 @@ const GeneratorContent = ({
             style={[
               tw`flex-1 py-4 px-3 rounded-xl items-center`,
               {
-                backgroundColor: captionLength === key ? themeColor : colors.background.card,
+                backgroundColor:
+                  captionLength === key ? themeColor : colors.background.card,
                 borderWidth: 1,
-                borderColor: captionLength === key ? themeColor : themeColor + '30',
+                borderColor:
+                  captionLength === key ? themeColor : themeColor + "30",
                 ...commonStyles.shadow.light,
               },
             ]}
@@ -508,7 +666,10 @@ const GeneratorContent = ({
               style={[
                 tw`text-base font-semibold`,
                 {
-                  color: captionLength === key ? colors.text.light : colors.text.primary,
+                  color:
+                    captionLength === key
+                      ? colors.text.light
+                      : colors.text.primary,
                 },
               ]}
             >
@@ -518,7 +679,10 @@ const GeneratorContent = ({
               style={[
                 tw`text-sm mt-1`,
                 {
-                  color: captionLength === key ? colors.text.light + 'CC' : colors.text.muted,
+                  color:
+                    captionLength === key
+                      ? colors.text.light + "CC"
+                      : colors.text.muted,
                 },
               ]}
             >
@@ -533,14 +697,26 @@ const GeneratorContent = ({
   const renderCategorySelector = () => (
     <View style={tw`p-2`}>
       <View style={tw`flex-row items-center mb-4`}>
-        <FontAwesome 
-          name={activeMode === "mood" ? "smile-o" : activeMode === "niche" ? "tags" : "list"} 
-          size={20} 
-          color={themeColor} 
-          style={tw`mr-2`} 
+        <FontAwesome
+          name={
+            activeMode === "mood"
+              ? "smile-o"
+              : activeMode === "niche"
+              ? "tags"
+              : "list"
+          }
+          size={20}
+          color={themeColor}
+          style={tw`mr-2`}
         />
-        <Text style={[tw`text-xl font-semibold`, { color: colors.text.primary }]}>
-          {activeMode === "mood" ? "Mood" : activeMode === "niche" ? "Niche" : "Category"}
+        <Text
+          style={[tw`text-xl font-semibold`, { color: colors.text.primary }]}
+        >
+          {activeMode === "mood"
+            ? "Mood"
+            : activeMode === "niche"
+            ? "Niche"
+            : "Category"}
         </Text>
       </View>
       <ScrollView
@@ -555,9 +731,15 @@ const GeneratorContent = ({
             style={[
               tw`py-2.5 px-4 rounded-full`,
               {
-                backgroundColor: selectedCategory === category.toLowerCase() ? themeColor : colors.background.card,
+                backgroundColor:
+                  selectedCategory === category.toLowerCase()
+                    ? themeColor
+                    : colors.background.card,
                 borderWidth: 1,
-                borderColor: selectedCategory === category.toLowerCase() ? themeColor : themeColor + '30',
+                borderColor:
+                  selectedCategory === category.toLowerCase()
+                    ? themeColor
+                    : themeColor + "30",
                 ...commonStyles.shadow.light,
               },
             ]}
@@ -567,7 +749,10 @@ const GeneratorContent = ({
               style={[
                 tw`text-sm font-medium`,
                 {
-                  color: selectedCategory === category.toLowerCase() ? colors.text.light : colors.text.primary,
+                  color:
+                    selectedCategory === category.toLowerCase()
+                      ? colors.text.light
+                      : colors.text.primary,
                 },
               ]}
             >
@@ -590,13 +775,22 @@ const GeneratorContent = ({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background.main} />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={colors.background.main}
+      />
+      {alertConfig && (
+        <ThemedAlert
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={() => setAlertConfig(null)}
+        />
+      )}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[
-          tw`px-4 py-6`,
-          { gap: 24 }
-        ]}
+        contentContainerStyle={[tw`px-4 py-6`, { gap: 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {renderLengthSelector()}
@@ -605,8 +799,18 @@ const GeneratorContent = ({
         {activeMode === "image" && (
           <View style={tw`mb-4 p-2`}>
             <View style={tw`flex-row items-center mb-4`}>
-              <FontAwesome name="image" size={20} color={themeColor} style={tw`mr-2`} />
-              <Text style={[tw`text-xl font-semibold`, { color: colors.text.primary }]}>
+              <FontAwesome
+                name="image"
+                size={20}
+                color={themeColor}
+                style={tw`mr-2`}
+              />
+              <Text
+                style={[
+                  tw`text-xl font-semibold`,
+                  { color: colors.text.primary },
+                ]}
+              >
                 Upload Image
               </Text>
             </View>
@@ -616,7 +820,7 @@ const GeneratorContent = ({
                 {
                   backgroundColor: colors.background.card,
                   borderWidth: 2,
-                  borderColor: themeColor + '30',
+                  borderColor: themeColor + "30",
                   borderStyle: "dashed",
                 },
                 commonStyles.shadow.light,
@@ -636,10 +840,14 @@ const GeneratorContent = ({
                     color={themeColor}
                     style={tw`mb-3`}
                   />
-                  <Text style={[tw`text-base font-medium`, { color: themeColor }]}>
+                  <Text
+                    style={[tw`text-base font-medium`, { color: themeColor }]}
+                  >
                     Tap to upload image
                   </Text>
-                  <Text style={[tw`text-sm mt-1`, { color: colors.text.muted }]}>
+                  <Text
+                    style={[tw`text-sm mt-1`, { color: colors.text.muted }]}
+                  >
                     JPG, PNG up to 10MB
                   </Text>
                 </View>
@@ -655,7 +863,7 @@ const GeneratorContent = ({
               {
                 backgroundColor: colors.background.card,
                 borderWidth: 1,
-                borderColor: themeColor + '30',
+                borderColor: themeColor + "30",
               },
               commonStyles.shadow.light,
             ]}
@@ -668,8 +876,15 @@ const GeneratorContent = ({
                 color={themeColor}
                 style={tw`mr-3`}
               />
-              <Text style={[tw`text-base font-medium`, { color: colors.text.primary }]}>
-                {showAdditionalContext ? "Hide Additional Context" : "Add Additional Context"}
+              <Text
+                style={[
+                  tw`text-base font-medium`,
+                  { color: colors.text.primary },
+                ]}
+              >
+                {showAdditionalContext
+                  ? "Hide Additional Context"
+                  : "Add Additional Context"}
               </Text>
             </View>
             <FontAwesome
@@ -698,7 +913,7 @@ const GeneratorContent = ({
                   backgroundColor: colors.background.card,
                   color: colors.text.primary,
                   borderWidth: 1,
-                  borderColor: themeColor + '30',
+                  borderColor: themeColor + "30",
                 },
                 commonStyles.shadow.light,
               ]}
@@ -727,8 +942,18 @@ const GeneratorContent = ({
             <ActivityIndicator color={colors.text.light} />
           ) : (
             <View style={tw`flex-row items-center`}>
-              <FontAwesome name="magic" size={20} color={colors.text.light} style={tw`mr-2`} />
-              <Text style={[tw`text-lg font-semibold`, { color: colors.text.light }]}>
+              <FontAwesome
+                name="magic"
+                size={20}
+                color={colors.text.light}
+                style={tw`mr-2`}
+              />
+              <Text
+                style={[
+                  tw`text-lg font-semibold`,
+                  { color: colors.text.light },
+                ]}
+              >
                 Generate Content
               </Text>
             </View>
@@ -737,7 +962,12 @@ const GeneratorContent = ({
 
         {error && (
           <View style={tw`bg-red-50 p-4 rounded-xl`}>
-            <Text style={[tw`text-red-500 text-center`, { color: colors.status.error }]}>
+            <Text
+              style={[
+                tw`text-red-500 text-center`,
+                { color: colors.status.error },
+              ]}
+            >
               {error}
             </Text>
           </View>
@@ -747,14 +977,21 @@ const GeneratorContent = ({
           <View style={tw`mt-4`}>
             <View style={tw`flex-row justify-between items-center mb-4`}>
               <View style={tw`flex-row items-center`}>
-                <FontAwesome 
-                  name={activeMode === "niche" ? "hashtag" : "file-text-o"} 
-                  size={20} 
-                  color={themeColor} 
-                  style={tw`mr-2`} 
+                <FontAwesome
+                  name={activeMode === "niche" ? "hashtag" : "file-text-o"}
+                  size={20}
+                  color={themeColor}
+                  style={tw`mr-2`}
                 />
-                <Text style={[tw`text-xl font-semibold`, { color: colors.text.primary }]}>
-                  {activeMode === "niche" ? "Generated Hashtags" : "Generated Content"}
+                <Text
+                  style={[
+                    tw`text-xl font-semibold`,
+                    { color: colors.text.primary },
+                  ]}
+                >
+                  {activeMode === "niche"
+                    ? "Generated Hashtags"
+                    : "Generated Content"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -765,8 +1002,18 @@ const GeneratorContent = ({
                 ]}
                 onPress={copyToClipboard}
               >
-                <FontAwesome name="copy" size={16} color={colors.text.light} style={tw`mr-2`} />
-                <Text style={[tw`text-sm font-medium`, { color: colors.text.light }]}>
+                <FontAwesome
+                  name="copy"
+                  size={16}
+                  color={colors.text.light}
+                  style={tw`mr-2`}
+                />
+                <Text
+                  style={[
+                    tw`text-sm font-medium`,
+                    { color: colors.text.light },
+                  ]}
+                >
                   Copy All
                 </Text>
               </TouchableOpacity>
@@ -776,15 +1023,20 @@ const GeneratorContent = ({
               <View
                 style={[
                   tw`p-5 rounded-xl mb-4`,
-                  { 
+                  {
                     backgroundColor: colors.background.card,
                     borderWidth: 1,
-                    borderColor: themeColor + '30',
+                    borderColor: themeColor + "30",
                   },
                   commonStyles.shadow.light,
                 ]}
               >
-                <Text style={[tw`text-base leading-6`, { color: colors.text.primary }]}>
+                <Text
+                  style={[
+                    tw`text-base leading-6`,
+                    { color: colors.text.primary },
+                  ]}
+                >
                   {caption}
                 </Text>
               </View>
@@ -793,16 +1045,23 @@ const GeneratorContent = ({
             <View
               style={[
                 tw`p-5 rounded-xl`,
-                { 
+                {
                   backgroundColor: colors.background.card,
                   borderWidth: 1,
-                  borderColor: themeColor + '30',
+                  borderColor: themeColor + "30",
                 },
                 commonStyles.shadow.light,
               ]}
             >
-              <Text style={[tw`text-base leading-6`, { color: colors.text.primary }]}>
-                {activeMode === "niche" ? hashtags.join(' ') : hashtags.join(', ')}
+              <Text
+                style={[
+                  tw`text-base leading-6`,
+                  { color: colors.text.primary },
+                ]}
+              >
+                {activeMode === "niche"
+                  ? hashtags.join(" ")
+                  : hashtags.join(", ")}
               </Text>
             </View>
           </View>

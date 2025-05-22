@@ -662,7 +662,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
             </View>
 
             {/* Recent Activities */}
-            <View style={{ marginBottom: commonStyles.spacing.xl }}>
+            {/* <View style={{ marginBottom: commonStyles.spacing.xl }}>
               <Text
                 style={{
                   color: colors.text.primary,
@@ -704,7 +704,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                   View your recent generations
                 </Text>
               </View>
-            </View>
+            </View> */}
           </View>
         </ScrollView>
       </Animated.View>
