@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,88 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Animated,
+  Dimensions,
+  Platform,
 } from "react-native";
 import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import { colors, commonStyles } from "../theme/colors";
+
+// Add ThemedNotification component
+const ThemedNotification = ({ type, message, onClose }) => {
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [translateY] = useState(new Animated.Value(-20));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const getNotificationStyle = () => {
+    switch (type) {
+      case 'success':
+        return { backgroundColor: colors.status.success, icon: 'check-circle' };
+      case 'error':
+        return { backgroundColor: colors.status.error, icon: 'exclamation-circle' };
+      case 'warning':
+        return { backgroundColor: colors.status.warning, icon: 'exclamation-triangle' };
+      case 'info':
+        return { backgroundColor: colors.status.info, icon: 'info-circle' };
+      default:
+        return { backgroundColor: colors.accent.sage, icon: 'info-circle' };
+    }
+  };
+
+  const style = getNotificationStyle();
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 50 : 30,
+        left: 20,
+        right: 20,
+        opacity: fadeAnim,
+        transform: [{ translateY }],
+        zIndex: 1000,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: style.backgroundColor,
+          borderRadius: commonStyles.borderRadius.medium,
+          padding: commonStyles.spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          ...commonStyles.shadow.medium,
+        }}
+      >
+        <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
+        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+          {message}
+        </Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
+            <FontAwesome name="times" size={16} color={colors.text.light} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
 
 const AuthScreen = ({ onClose }) => {
   const { supabase, setUser, signInWithOtp, verifyOtp, otpLoading } = useAuth();
@@ -22,26 +99,43 @@ const AuthScreen = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const slideAnim = new Animated.Value(Dimensions.get('window').height);
+  const fadeAnim = new Animated.Value(0);
+
+  // Add notification handler
+  const showNotification = (type, message, duration = 3000) => {
+    setNotification({ type, message });
+    if (duration) {
+      setTimeout(() => setNotification(null), duration);
+    }
+  };
+
+  useEffect(() => {
+    // Slide up and fade in animation when screen opens
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleAuthSuccess = async (userData) => {
     setUser(userData);
+    showNotification('success', `Welcome! You've successfully ${isSignUp ? "created your account" : "signed in"}!`);
     onClose();
-    Alert.alert(
-      "Welcome! 👋",
-      `You've successfully ${
-        isSignUp ? "created your account" : "signed in"
-      }! Let's get started.`,
-      [{ text: "Let's Go!" }]
-    );
   };
 
   const handleEmailAuth = async () => {
     if (!email || !password) {
-      Alert.alert(
-        "Missing Information",
-        "Please enter both your email and password to continue.",
-        [{ text: "Got it" }]
-      );
+      showNotification('warning', 'Please enter both your email and password to continue.');
       return;
     }
 
@@ -67,12 +161,10 @@ const AuthScreen = ({ onClose }) => {
       }
     } catch (error) {
       console.error("Auth error:", error);
-      Alert.alert(
-        "Authentication Issue",
+      showNotification('error', 
         error.message === "Invalid login credentials"
-          ? "The email or password you entered doesn't match our records. Please check and try again."
-          : "We couldn't complete the authentication. Please try again or contact support if the issue persists.",
-        [{ text: "OK" }]
+          ? "The email or password you entered doesn't match our records."
+          : "We couldn't complete the authentication. Please try again."
       );
     } finally {
       setLoading(false);
@@ -81,11 +173,7 @@ const AuthScreen = ({ onClose }) => {
 
   const handleSendCode = async () => {
     if (!email || !email.includes("@")) {
-      Alert.alert(
-        "Invalid Email",
-        "Please enter a valid email address to receive your verification code.",
-        [{ text: "OK" }]
-      );
+      showNotification('warning', 'Please enter a valid email address to receive your verification code.');
       return;
     }
 
@@ -95,47 +183,32 @@ const AuthScreen = ({ onClose }) => {
 
       setShowVerification(true);
       setResendTimer(30);
-      Alert.alert(
-        "Code Sent! 📧",
-        `We've sent a verification code to ${email}. Please check your inbox and spam folder.`,
-        [{ text: "OK" }]
-      );
+      showNotification('success', `Verification code sent to ${email}. Please check your inbox and spam folder.`);
     } catch (error) {
       console.error("Error sending code:", error);
-      Alert.alert(
-        "Code Sending Failed",
-        "We had trouble sending your verification code. Please check your email address and try again.",
-        [{ text: "Try Again" }]
-      );
+      showNotification('error', 'Failed to send verification code. Please check your email address and try again.');
     }
   };
 
   const handleVerifyCode = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      Alert.alert(
-        "Invalid Code",
-        "Please enter the 6-digit verification code from your email.",
-        [{ text: "OK" }]
-      );
+      showNotification('warning', 'Please enter the 6-digit verification code from your email.');
       return;
     }
 
     try {
       const { error } = await verifyOtp(email, verificationCode);
       if (error) throw error;
+      showNotification('success', 'Email verified successfully!');
       onClose();
     } catch (error) {
       console.error("Verification error:", error);
-      Alert.alert(
-        "Verification Failed",
-        "The code you entered is incorrect or has expired. Please try again or request a new code.",
-        [{ text: "OK" }]
-      );
+      showNotification('error', 'The code you entered is incorrect or has expired. Please try again.');
     }
   };
 
   // Timer effect for resend cooldown
-  React.useEffect(() => {
+  useEffect(() => {
     let interval;
     if (resendTimer > 0) {
       interval = setInterval(() => {
@@ -144,6 +217,24 @@ const AuthScreen = ({ onClose }) => {
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
+
+  const handleClose = () => {
+    // Slide down and fade out animation when closing
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: Dimensions.get('window').height,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose();
+    });
+  };
 
   const renderEmailPasswordAuth = () => (
     <View>
@@ -451,129 +542,147 @@ const AuthScreen = ({ onClose }) => {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background.main }}>
-      <View
-        style={{
-          paddingHorizontal: 24,
-          paddingTop: 32,
-          paddingBottom: 24,
-          marginTop: 48,
-        }}
-      >
+    <Animated.View 
+      style={{
+        flex: 1,
+        backgroundColor: colors.background.main,
+        transform: [{ translateY: slideAnim }],
+        opacity: fadeAnim,
+      }}
+    >
+      {/* Add notification component */}
+      {notification && (
+        <ThemedNotification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      <ScrollView style={{ flex: 1 }}>
         <View
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 40,
+            paddingHorizontal: 24,
+            paddingTop: 32,
+            paddingBottom: 24,
+            marginTop: 48,
           }}
         >
-          <Text
+          <View
             style={{
-              fontSize: 36,
-              fontWeight: "800",
-              color: colors.text.primary,
-              letterSpacing: -1,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 40,
             }}
           >
-            {showVerification
-              ? "Verify Email"
-              : isSignUp
-              ? "Sign Up"
-              : "Sign In"}
-          </Text>
-          <TouchableOpacity onPress={onClose}>
+            <Text
+              style={{
+                fontSize: 36,
+                fontWeight: "800",
+                color: colors.text.primary,
+                letterSpacing: -1,
+              }}
+            >
+              {showVerification
+                ? "Verify Email"
+                : isSignUp
+                ? "Sign Up"
+                : "Sign In"}
+            </Text>
+            <TouchableOpacity onPress={handleClose}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: colors.background.card,
+                  ...commonStyles.shadow.light,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: colors.border.light,
+                }}
+              >
+                <FontAwesome
+                  name="times"
+                  size={20}
+                  color={colors.text.secondary}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Auth Method Selector */}
+          {!showVerification && (
             <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                flexDirection: "row",
+                marginBottom: 32,
                 backgroundColor: colors.background.card,
+                borderRadius: commonStyles.borderRadius.medium,
                 ...commonStyles.shadow.light,
-                alignItems: "center",
-                justifyContent: "center",
+                overflow: "hidden",
                 borderWidth: 1,
                 borderColor: colors.border.light,
               }}
             >
-              <FontAwesome
-                name="times"
-                size={20}
-                color={colors.text.secondary}
-              />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Auth Method Selector */}
-        {!showVerification && (
-          <View
-            style={{
-              flexDirection: "row",
-              marginBottom: 32,
-              backgroundColor: colors.background.card,
-              borderRadius: commonStyles.borderRadius.medium,
-              ...commonStyles.shadow.light,
-              overflow: "hidden",
-              borderWidth: 1,
-              borderColor: colors.border.light,
-            }}
-          >
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                padding: 16,
-                backgroundColor:
-                  authMethod === "email"
-                    ? colors.accent.orange
-                    : colors.background.card,
-                alignItems: "center",
-              }}
-              onPress={() => setAuthMethod("email")}
-            >
-              <Text
+              <TouchableOpacity
                 style={{
-                  fontWeight: "700",
-                  color:
+                  flex: 1,
+                  padding: 16,
+                  backgroundColor:
                     authMethod === "email"
-                      ? colors.text.light
-                      : colors.text.secondary,
+                      ? colors.accent.orange
+                      : colors.background.card,
+                  alignItems: "center",
                 }}
+                onPress={() => setAuthMethod("email")}
               >
-                Email & Password
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                padding: 16,
-                backgroundColor:
-                  authMethod === "otp"
-                    ? colors.accent.orange
-                    : colors.background.card,
-                alignItems: "center",
-              }}
-              onPress={() => setAuthMethod("otp")}
-            >
-              <Text
+                <Text
+                  style={{
+                    fontWeight: "700",
+                    color:
+                      authMethod === "email"
+                        ? colors.text.light
+                        : colors.text.secondary,
+                  }}
+                >
+                  Email & Password
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={{
-                  fontWeight: "700",
-                  color:
+                  flex: 1,
+                  padding: 16,
+                  backgroundColor:
                     authMethod === "otp"
-                      ? colors.text.light
-                      : colors.text.secondary,
+                      ? colors.accent.orange
+                      : colors.background.card,
+                  alignItems: "center",
                 }}
+                onPress={() => setAuthMethod("otp")}
               >
-                Email OTP
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+                <Text
+                  style={{
+                    fontWeight: "700",
+                    color:
+                      authMethod === "otp"
+                        ? colors.text.light
+                        : colors.text.secondary,
+                  }}
+                >
+                  Email OTP
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {/* Auth Content */}
-        {authMethod === "email" ? renderEmailPasswordAuth() : renderEmailOtp()}
-      </View>
-    </ScrollView>
+          {/* Auth Content */}
+          {authMethod === "email" ? renderEmailPasswordAuth() : renderEmailOtp()}
+        </View>
+      </ScrollView>
+    </Animated.View>
   );
 };
 

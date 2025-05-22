@@ -129,8 +129,12 @@ const AuthProvider = ({ children }) => {
       
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Return success status for handling navigation
+      return { success: true };
     } catch (error) {
       console.error('Error signing out:', error.message);
+      return { success: false, error };
     } finally {
       setLoading(false);
     }

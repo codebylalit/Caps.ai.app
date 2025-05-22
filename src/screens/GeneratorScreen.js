@@ -25,6 +25,8 @@ import { useAuth } from "../hooks/useAuth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useUsageTracking } from "../hooks/useFreeCredits";
 import { colors, commonStyles } from "../theme/colors";
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
+import { faCoins } from '@fortawesome/free-solid-svg-icons';
 
 export const API_CONFIG = {
   BASE_URL:
@@ -361,22 +363,25 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                   {isGenerating ? (
                     <LoadingAnimation type={activeMode} />
                   ) : (
-                    <ScrollView
-                      style={{ flex: 1 }}
-                      showsVerticalScrollIndicator={false}
-                    >
+                    <>
                       {/* Back button and Credits */}
                       <View
                         style={[
-                          tw`flex-row items-center px-4 py-3 pb-2`,
-                          { backgroundColor: colors.background.main },
+                          tw`flex-row items-center px-4 py-3 pb-2 pt-6`,
+                          { backgroundColor: colors.background.sage },
                         ]}
                       >
-                        <TouchableOpacity onPress={handleBack} style={tw`p-2`}>
+                        <TouchableOpacity
+                          onPress={handleBack}
+                          style={[
+                            tw`p-2 rounded-xl`,
+                            { backgroundColor: themeColor },
+                          ]}
+                        >
                           <FontAwesome
                             name="arrow-left"
-                            size={16}
-                            color={themeColor}
+                            size={14}
+                            color="white"
                           />
                         </TouchableOpacity>
                         <Text
@@ -387,39 +392,76 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                         >
                           {getScreenTitle()}
                         </Text>
-                        {user && userCredits > 0 && (
-                          <View
+                        {user ? (
+                          userCredits > 0 && (
+                            <TouchableOpacity
+                              onPress={() => handleTabChange("credits")}
+                              style={[
+                                tw`flex-row items-center px-3 py-1.5 rounded-full`,
+                                { backgroundColor: themeColor },
+                              ]}
+                            >
+                              <FontAwesomeIcon
+                                icon={faCoins}
+                                size={12}
+                                color={colors.text.light}
+                                style={tw`mr-1.5`}
+                              />
+                              <Text
+                                style={[
+                                  tw`text-sm font-semibold`,
+                                  { color: colors.text.light },
+                                ]}
+                              >
+                                {userCredits}
+                              </Text>
+                            </TouchableOpacity>
+                          )
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => handleTabChange("credits")}
                             style={[
-                              tw`px-3 py-1.5 rounded-full`,
+                              tw`flex-row items-center px-3 py-1.5 rounded-full`,
                               { backgroundColor: themeColor },
                             ]}
                           >
+                            <FontAwesomeIcon
+                              icon={faCoins}
+                              size={12}
+                              color={colors.text.light}
+                              style={tw`mr-1.5`}
+                            />
                             <Text
                               style={[
-                                tw`text-sm font-medium`,
+                                tw`text-sm font-semibold`,
                                 { color: colors.text.light },
                               ]}
                             >
-                              {userCredits} Credits
+                              {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
                             </Text>
-                          </View>
+                          </TouchableOpacity>
                         )}
                       </View>
 
-                      <GeneratorContent
-                        activeMode={activeMode}
-                        setActiveMode={setActiveMode}
-                        user={user}
-                        supabase={supabase}
-                        userCredits={userCredits}
-                        deductCredit={deductCredit}
-                        API_CONFIG={API_CONFIG}
-                        anonymousUsageCount={anonymousUsageCount}
-                        MAX_ANONYMOUS_GENERATIONS={MAX_ANONYMOUS_GENERATIONS}
-                        incrementAnonymousUsage={incrementAnonymousUsage}
-                        themeColor={themeColor}
-                      />
-                    </ScrollView>
+                      <ScrollView
+                        style={{ flex: 1 }}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        <GeneratorContent
+                          activeMode={activeMode}
+                          setActiveMode={setActiveMode}
+                          user={user}
+                          supabase={supabase}
+                          userCredits={userCredits}
+                          deductCredit={deductCredit}
+                          API_CONFIG={API_CONFIG}
+                          anonymousUsageCount={anonymousUsageCount}
+                          MAX_ANONYMOUS_GENERATIONS={MAX_ANONYMOUS_GENERATIONS}
+                          incrementAnonymousUsage={incrementAnonymousUsage}
+                          themeColor={themeColor}
+                        />
+                      </ScrollView>
+                    </>
                   )}
                 </>
               )}
@@ -435,6 +477,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                   deleteHistoryItem={deleteHistoryItem}
                   supabase={supabase}
                   setActiveTab={setActiveTab}
+                  activeMode={activeMode}
                 />
               )}
             </View>
@@ -443,12 +486,24 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
           {/* Bottom Navigation */}
           <View
             style={[
-              tw`flex-row`,
+              tw`flex-row justify-around`,
               {
+                paddingVertical: commonStyles.spacing.md,
                 backgroundColor: colors.background.main,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
                 borderTopWidth: 1,
-                borderTopColor: colors.border.light,
+                borderLeftWidth: 1,
+                borderRightWidth: 1,
+                borderColor: "rgba(0,0,0,0.05)",
                 ...commonStyles.shadow.medium,
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                paddingBottom:
+                  Platform.OS === "ios" ? 20 : commonStyles.spacing.md,
+                marginHorizontal: 8,
               },
             ]}
           >
@@ -460,24 +515,27 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.id}
-                style={[
-                  tw`flex-1 py-4 items-center`,
-                  { backgroundColor: colors.background.main },
-                ]}
+                style={tw`flex-1 items-center`}
                 onPress={() => handleTabChange(tab.id)}
               >
                 <FontAwesome
                   name={tab.icon}
-                  size={20}
-                  color={activeTab === tab.id ? themeColor : colors.text.muted}
+                  size={22}
+                  color={
+                    activeTab === tab.id
+                      ? getThemeColor()
+                      : colors.text.secondary
+                  }
                 />
                 <Text
                   style={[
                     tw`text-xs mt-1`,
                     {
                       color:
-                        activeTab === tab.id ? themeColor : colors.text.muted,
-                      fontWeight: activeTab === tab.id ? "600" : "500",
+                        activeTab === tab.id
+                          ? getThemeColor()
+                          : colors.text.secondary,
+                      fontWeight: activeTab === tab.id ? "700" : "500",
                     },
                   ]}
                 >

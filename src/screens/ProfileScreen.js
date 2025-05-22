@@ -69,7 +69,7 @@ const LoadingAnimation = () => {
   );
 };
 
-const Profile = ({ setActiveMode, setShowAuth }) => {
+const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
   const { user, supabase } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -266,6 +266,23 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
     }
   };
 
+   const getThemeColor = () => {
+      switch (activeMode) {
+        case "mood":
+          return colors.accent.sage;
+        case "niche":
+          return colors.accent.orange;
+        case "image":
+          return colors.accent.olive;
+        case "textbehind":
+          return colors.accent.purple;
+        default:
+          return colors.accent.sage;
+      }
+    };
+  
+    const themeColor = getThemeColor();
+
   const getInitial = (name) => {
     return (name || "User").charAt(0).toUpperCase();
   };
@@ -322,11 +339,11 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
   }
 
   return (
-    <Animated.View 
-      style={{ 
+    <Animated.View
+      style={{
         flex: 1,
         opacity: fadeAnim,
-        transform: [{ translateX: slideAnim }]
+        transform: [{ translateX: slideAnim }],
       }}
     >
       <ScrollView
@@ -338,19 +355,30 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
       >
         {/* Header */}
         <View style={[tw`px-5 pt-6 pb-4 bg-white`, commonStyles.shadow.light]}>
-          <View style={tw`flex-row items-center`}>
+          <View style={tw`flex-row items-center justify-between`}>
             <TouchableOpacity
               style={[tw`flex-row items-center`]}
               onPress={handleBack}
             >
-              <View style={[tw`w-7 h-7 rounded-full items-center justify-center mr-2`, { backgroundColor: colors.accent.sage + '15' }]}>
+              <View
+                style={[
+                  tw`w-8 h-8 rounded-xl items-center justify-center`,
+                  { backgroundColor: themeColor },
+                  commonStyles.shadow.light,
+                ]}
+              >
                 <FontAwesome
                   name="arrow-left"
-                  size={14}
-                  color={colors.accent.sage}
+                  size={16}
+                  color="white"
                 />
               </View>
-              <Text style={[tw`text-lg font-bold`, { color: colors.text.primary }]}>
+              <Text
+                style={[
+                  tw`text-lg font-semibold ml-3 mt-[-4]`,
+                  { color: colors.text.primary },
+                ]}
+              >
                 Profile
               </Text>
             </TouchableOpacity>
@@ -375,10 +403,7 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                 />
               ) : (
                 <Text
-                  style={[
-                    tw`text-4xl font-bold`,
-                    { color: colors.text.light },
-                  ]}
+                  style={[tw`text-4xl font-bold`, { color: colors.text.light }]}
                 >
                   {getInitial(localUser?.name || displayName)}
                 </Text>
@@ -392,7 +417,7 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                   onChangeText={setDisplayName}
                   style={[
                     tw`text-lg font-semibold text-center mb-2 px-3 py-2 rounded-lg`,
-                    { 
+                    {
                       color: colors.text.primary,
                       backgroundColor: colors.background.card,
                       borderWidth: 1,
@@ -412,7 +437,12 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                     ]}
                     onPress={handleUpdateProfile}
                   >
-                    <Text style={[tw`font-semibold text-sm`, { color: colors.text.light }]}>
+                    <Text
+                      style={[
+                        tw`font-semibold text-sm`,
+                        { color: colors.text.light },
+                      ]}
+                    >
                       Save Changes
                     </Text>
                   </TouchableOpacity>
@@ -427,7 +457,12 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                       setIsEditing(false);
                     }}
                   >
-                    <Text style={[tw`font-semibold text-sm`, { color: colors.text.secondary }]}>
+                    <Text
+                      style={[
+                        tw`font-semibold text-sm`,
+                        { color: colors.text.secondary },
+                      ]}
+                    >
                       Cancel
                     </Text>
                   </TouchableOpacity>
@@ -459,18 +494,38 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
             ]}
           >
             <View style={tw`items-center flex-1`}>
-              <Text style={[tw`text-2xl font-bold mb-1`, { color: colors.text.primary }]}>
+              <Text
+                style={[
+                  tw`text-2xl font-bold mb-1`,
+                  { color: colors.text.primary },
+                ]}
+              >
                 {generations}
               </Text>
-              <Text style={[tw`text-xs font-medium`, { color: colors.text.secondary }]}>
+              <Text
+                style={[
+                  tw`text-xs font-medium`,
+                  { color: colors.text.secondary },
+                ]}
+              >
                 Generations
               </Text>
             </View>
             <View style={tw`items-center flex-1`}>
-              <Text style={[tw`text-2xl font-bold mb-1`, { color: colors.text.primary }]}>
+              <Text
+                style={[
+                  tw`text-2xl font-bold mb-1`,
+                  { color: colors.text.primary },
+                ]}
+              >
                 {credits}
               </Text>
-              <Text style={[tw`text-xs font-medium`, { color: colors.text.secondary }]}>
+              <Text
+                style={[
+                  tw`text-xs font-medium`,
+                  { color: colors.text.secondary },
+                ]}
+              >
                 Credits
               </Text>
             </View>
@@ -493,20 +548,47 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
               {
                 icon: "credit-card",
                 label: `Credits & Billing`,
-                onPress: () => handleMenuPress(() => setActiveMode("dashboard:transactions")),
+                onPress: () =>
+                  handleMenuPress(() =>
+                    setActiveMode("dashboard:transactions")
+                  ),
               },
               {
                 icon: "history",
                 label: "Generation History",
-                onPress: () => handleMenuPress(() => setActiveMode("dashboard:history")),
+                onPress: () =>
+                  handleMenuPress(() => setActiveMode("dashboard:history")),
               },
               {
                 icon: "sign-out",
                 label: "Logout",
-                onPress: () => handleMenuPress(async () => {
-                  await supabase.auth.signOut();
-                  setLocalUser(null);
-                }),
+                onPress: () =>
+                  handleMenuPress(async () => {
+                    try {
+                      // Animate exit before logging out
+                      Animated.parallel([
+                        Animated.timing(fadeAnim, {
+                          toValue: 0,
+                          duration: 200,
+                          useNativeDriver: true,
+                          easing: Easing.in(Easing.cubic),
+                        }),
+                        Animated.timing(slideAnim, {
+                          toValue: 50,
+                          duration: 200,
+                          useNativeDriver: true,
+                          easing: Easing.in(Easing.cubic),
+                        }),
+                      ]).start(async () => {
+                        await supabase.auth.signOut();
+                        setLocalUser(null);
+                        setActiveMode(null); // This will redirect to home screen
+                      });
+                    } catch (error) {
+                      console.error("Logout error:", error);
+                      Alert.alert("Error", "Failed to logout. Please try again.");
+                    }
+                  }),
               },
             ].map((item, index) => (
               <TouchableOpacity
@@ -523,7 +605,7 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                 <View
                   style={[
                     tw`w-8 h-8 rounded-lg items-center justify-center mr-3`,
-                    { backgroundColor: colors.accent.sage + '15' },
+                    { backgroundColor: colors.accent.sage + "15" },
                   ]}
                 >
                   <FontAwesome
@@ -532,7 +614,12 @@ const Profile = ({ setActiveMode, setShowAuth }) => {
                     color={colors.accent.sage}
                   />
                 </View>
-                <Text style={[tw`text-sm font-semibold`, { color: colors.text.primary }]}>
+                <Text
+                  style={[
+                    tw`text-sm font-semibold`,
+                    { color: colors.text.primary },
+                  ]}
+                >
                   {item.label}
                 </Text>
                 <FontAwesome

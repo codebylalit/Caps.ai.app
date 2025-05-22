@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -27,9 +27,110 @@ import { useAuth } from "../hooks/useAuth";
 import { useUsageTracking } from "../hooks/useFreeCredits";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, commonStyles } from "../theme/colors";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faCoins } from "@fortawesome/free-solid-svg-icons";
+import ConfettiCannon from 'react-native-confetti-cannon';
 
-const HomeScreen = ({ setActiveMode }) => {
+// Add new themed components
+const ThemedNotification = ({ type, message, onClose }) => {
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [translateY] = useState(new Animated.Value(-20));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const getNotificationStyle = () => {
+    switch (type) {
+      case 'success':
+        return { backgroundColor: colors.accent.orange, icon: 'check-circle' };
+      case 'error':
+        return { backgroundColor: colors.accent.sage, icon: 'exclamation-circle' };
+      case 'warning':
+        return { backgroundColor: colors.accent.olive, icon: 'exclamation-triangle' };
+      case 'info':
+        return { backgroundColor: colors.accent.blue, icon: 'info-circle' };
+      default:
+        return { backgroundColor: colors.accent.sage, icon: 'info-circle' };
+    }
+  };
+
+  const style = getNotificationStyle();
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 50 : 30,
+        left: 20,
+        right: 20,
+        opacity: fadeAnim,
+        transform: [{ translateY }],
+        zIndex: 1000,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: style.backgroundColor,
+          borderRadius: commonStyles.borderRadius.medium,
+          padding: commonStyles.spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          ...commonStyles.shadow.medium,
+        }}
+      >
+        <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
+        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+          {message}
+        </Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
+            <FontAwesome name="times" size={16} color={colors.text.light} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
+
+const ThemedWelcomeMessage = ({ name, greeting }) => (
+  <View style={{ marginBottom: commonStyles.spacing.lg }}>
+    <Text
+      style={[
+        tw`text-3xl font-bold`,
+        { color: colors.text.primary },
+      ]}
+    >
+      Hi {name || "there"}
+    </Text>
+    <Text
+      style={[
+        tw`text-lg`,
+        { color: colors.text.secondary, fontWeight: "500" },
+      ]}
+    >
+      {greeting}
+    </Text>
+  </View>
+);
+
+const HomeScreen = ({ setActiveMode, activeMode  }) => {
   const { user, supabase } = useAuth();
+  const confettiRef = useRef(null);
+  const [hasShownCelebration, setHasShownCelebration] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   // Define the function before using it in state initialization
   const getTimeBasedGreeting = () => {
@@ -55,6 +156,13 @@ const HomeScreen = ({ setActiveMode }) => {
   const [localUser, setLocalUser] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(1));
   const [scaleAnim] = useState(new Animated.Value(1));
+  const [authScreenVisible, setAuthScreenVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('home');
+  const tabAnimations = {
+    home: new Animated.Value(1),
+    create: new Animated.Value(1),
+    profile: new Animated.Value(1),
+  };
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -75,12 +183,28 @@ const HomeScreen = ({ setActiveMode }) => {
 
           if (error) {
             console.error("Error fetching profile:", error.message);
+            showNotification('error', 'Failed to load profile data');
           } else {
             setDisplayName(data?.name || "User");
+            showNotification('success', 'Welcome back!');
           }
+        }
+
+        // Check if we should show celebration
+        const hasShownCelebrationBefore = await AsyncStorage.getItem("hasShownCelebration");
+        if (!hasShownCelebrationBefore && !user) {
+          setHasShownCelebration(true);
+          await AsyncStorage.setItem("hasShownCelebration", "true");
+          // Trigger confetti after a short delay
+          setTimeout(() => {
+            if (confettiRef.current) {
+              confettiRef.current.start();
+            }
+          }, 1000);
         }
       } catch (error) {
         console.error("Error during initialization:", error);
+        showNotification('error', 'Failed to initialize app');
       }
     };
 
@@ -120,14 +244,38 @@ const HomeScreen = ({ setActiveMode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      showNotification('success', 'Successfully logged out');
     } catch (error) {
       console.error("Error signing out:", error.message);
+      showNotification('error', 'Failed to log out. Please try again.');
     }
   };
 
   const handleLogin = () => {
-    setShowAuth(true);
+    setAuthScreenVisible(true);
+    showNotification('info', 'Please sign in to continue');
   };
+
+  const handleAuthClose = () => {
+    setAuthScreenVisible(false);
+  };
+
+    const getThemeColor = () => {
+      switch (activeMode) {
+        case "mood":
+          return colors.accent.sage;
+        case "niche":
+          return colors.accent.orange;
+        case "image":
+          return colors.accent.olive;
+        case "textbehind":
+          return colors.accent.purple;
+        default:
+          return colors.accent.sage;
+      }
+    };
+  
+    const themeColor = getThemeColor();
 
   const animateModal = (show) => {
     if (show) {
@@ -207,6 +355,28 @@ const HomeScreen = ({ setActiveMode }) => {
     animateTransition(() => setActiveMode(mode));
   };
 
+  const animateTab = (tabName) => {
+    // Reset all tabs
+    Object.keys(tabAnimations).forEach(key => {
+      Animated.timing(tabAnimations[key], {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }).start();
+    });
+
+    // Animate selected tab
+    Animated.timing(tabAnimations[tabName], {
+      toValue: 1.2,
+      duration: 200,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.cubic),
+    }).start();
+
+    setActiveTab(tabName);
+  };
+
   // FeatureCard for content creation
   const FeatureCard = ({ icon, title, description, color, onPress }) => (
     <TouchableOpacity
@@ -271,6 +441,14 @@ const HomeScreen = ({ setActiveMode }) => {
     animateTransition(() => setShowProfile(true));
   };
 
+  // Add notification handler
+  const showNotification = (type, message, duration = 3000) => {
+    setNotification({ type, message });
+    if (duration) {
+      setTimeout(() => setNotification(null), duration);
+    }
+  };
+
   if (showOnboarding) {
     return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
   }
@@ -300,11 +478,27 @@ const HomeScreen = ({ setActiveMode }) => {
         barStyle="dark-content"
         backgroundColor={colors.background.main}
       />
-      <Animated.View 
-        style={{ 
+      <ConfettiCannon
+        ref={confettiRef}
+        count={200}
+        origin={{x: -10, y: 0}}
+        autoStart={false}
+        fadeOut={true}
+        colors={['#FFD700', '#FFA500', '#FF69B4', '#87CEEB', '#98FB98']}
+      />
+      {/* Add notification component */}
+      {notification && (
+        <ThemedNotification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
+      <Animated.View
+        style={{
           flex: 1,
           opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }]
+          transform: [{ scale: scaleAnim }],
         }}
       >
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -315,24 +509,15 @@ const HomeScreen = ({ setActiveMode }) => {
             }}
           >
             {/* Header */}
-            <View style={tw`flex-row justify-between items-center mb-10`}>
-              <View>
-                <Text
-                  style={[
-                    tw`text-3xl font-bold`,
-                    { color: colors.text.primary },
-                  ]}
-                >
-                  Hi {localUser?.name || displayName || "there"}
-                </Text>
-                <Text
-                  style={[
-                    tw`text-lg`,
-                    { color: colors.text.secondary, fontWeight: "500" },
-                  ]}
-                >
-                  {currentGreeting}
-                </Text>
+            <View style={[
+              tw`flex-row justify-between items-center mb-4`,
+              { minHeight: 60 }
+            ]}>
+              <View style={tw`flex-1 mr-4`}>
+                <ThemedWelcomeMessage
+                  name={localUser?.name || displayName}
+                  greeting={currentGreeting}
+                />
               </View>
               {user ? (
                 <TouchableOpacity
@@ -341,10 +526,12 @@ const HomeScreen = ({ setActiveMode }) => {
                     backgroundColor: colors.accent.sage,
                     width: 50,
                     height: 50,
-                    borderRadius: 50,
+                    borderRadius: 25,
                     alignItems: "center",
                     justifyContent: "center",
                     ...commonStyles.shadow.light,
+                    flexShrink: 0,
+                    marginTop: -24
                   }}
                 >
                   <Text
@@ -361,23 +548,25 @@ const HomeScreen = ({ setActiveMode }) => {
               ) : (
                 <TouchableOpacity
                   onPress={() => handleNavigation("credits")}
-                  style={{
-                    backgroundColor: colors.accent.sage,
-                    paddingHorizontal: commonStyles.spacing.lg,
-                    paddingVertical: commonStyles.spacing.sm,
-                    borderRadius: commonStyles.borderRadius.medium,
-                    ...commonStyles.shadow.light,
-                  }}
+                  style={[
+                    tw`flex-row items-center px-4 py-2 rounded-full`,
+                    { backgroundColor: themeColor },
+                    { flexShrink: 0, marginTop: -24 },
+                  ]}
                 >
+                  <FontAwesomeIcon
+                    icon={faCoins}
+                    size={12}
+                    color={colors.text.light}
+                    style={tw`mr-1.5`}
+                  />
                   <Text
-                    style={{
-                      color: colors.text.light,
-                      fontSize: 16,
-                      fontWeight: "700",
-                      textAlign: "center",
-                    }}
+                    style={[
+                      tw`text-sm font-semibold`,
+                      { color: colors.text.light },
+                    ]}
                   >
-                    Credits: {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
+                    {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -520,55 +709,118 @@ const HomeScreen = ({ setActiveMode }) => {
         </ScrollView>
       </Animated.View>
 
-      {/* Bottom Navigation */}
+      {/* Modern Bottom Navigation */}
       <View
         style={{
           flexDirection: "row",
           justifyContent: "space-around",
-          paddingVertical: commonStyles.spacing.lg,
+          paddingVertical: commonStyles.spacing.md,
           backgroundColor: colors.background.main,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
           borderTopWidth: 1,
-          borderTopColor: colors.accent.beige,
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderColor: 'rgba(0,0,0,0.05)',
           ...commonStyles.shadow.medium,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingBottom: Platform.OS === 'ios' ? 20 : commonStyles.spacing.md,
+          marginHorizontal: 8,
         }}
       >
-        <TouchableOpacity style={{ alignItems: "center" }}>
-          <FontAwesome name="home" size={22} color={colors.text.primary} />
+        <TouchableOpacity 
+          style={{ alignItems: "center" }}
+          onPress={() => animateTab('home')}
+        >
+          <Animated.View
+            style={{
+              transform: [{ scale: tabAnimations.home }],
+              backgroundColor: activeTab === 'home' ? colors.accent.sage + '20' : 'transparent',
+              padding: 12,
+              borderRadius: 12,
+            }}
+          >
+            <FontAwesome 
+              name="home" 
+              size={22} 
+              color={activeTab === 'home' ? colors.accent.sage : colors.text.secondary} 
+            />
+          </Animated.View>
           <Text
             style={{
-              color: colors.text.primary,
-              fontSize: 13,
-              marginTop: commonStyles.spacing.sm,
-              fontWeight: "600",
+              color: activeTab === 'home' ? colors.accent.sage : colors.text.secondary,
+              fontSize: 12,
+              marginTop: 4,
+              fontWeight: activeTab === 'home' ? "700" : "500",
             }}
           >
             Home
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={{ alignItems: "center" }} onPress={showModal}>
-          <FontAwesome name="plus" size={22} color={colors.text.primary} />
+
+        <TouchableOpacity 
+          style={{ alignItems: "center" }}
+          onPress={() => {
+            animateTab('create');
+            showModal();
+          }}
+        >
+          <Animated.View
+            style={{
+              transform: [{ scale: tabAnimations.create }],
+              backgroundColor: activeTab === 'create' ? colors.accent.orange + '20' : 'transparent',
+              padding: 12,
+              borderRadius: 12,
+            }}
+          >
+            <FontAwesome 
+              name="plus" 
+              size={22} 
+              color={activeTab === 'create' ? colors.accent.orange : colors.text.secondary} 
+            />
+          </Animated.View>
           <Text
             style={{
-              color: colors.text.primary,
-              fontSize: 13,
-              marginTop: commonStyles.spacing.sm,
-              fontWeight: "600",
+              color: activeTab === 'create' ? colors.accent.orange : colors.text.secondary,
+              fontSize: 12,
+              marginTop: 4,
+              fontWeight: activeTab === 'create' ? "700" : "500",
             }}
           >
             Create
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={{ alignItems: "center" }}
-          onPress={() => (user ? setShowProfile(true) : setShowAuth(true))}
+          onPress={() => {
+            animateTab('profile');
+            user ? setShowProfile(true) : setShowAuth(true);
+          }}
         >
-          <FontAwesome name="user" size={22} color={colors.text.primary} />
+          <Animated.View
+            style={{
+              transform: [{ scale: tabAnimations.profile }],
+              backgroundColor: activeTab === 'profile' ? colors.accent.purple + '20' : 'transparent',
+              padding: 12,
+              borderRadius: 12,
+            }}
+          >
+            <FontAwesome 
+              name="user" 
+              size={22} 
+              color={activeTab === 'profile' ? colors.accent.purple : colors.text.secondary} 
+            />
+          </Animated.View>
           <Text
             style={{
-              color: colors.text.primary,
-              fontSize: 13,
-              marginTop: commonStyles.spacing.sm,
-              fontWeight: "600",
+              color: activeTab === 'profile' ? colors.accent.purple : colors.text.secondary,
+              fontSize: 12,
+              marginTop: 4,
+              fontWeight: activeTab === 'profile' ? "700" : "500",
             }}
           >
             Profile
@@ -739,6 +991,13 @@ const HomeScreen = ({ setActiveMode }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Auth Screen Modal */}
+      {authScreenVisible && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <AuthScreen onClose={handleAuthClose} />
+        </View>
+      )}
     </SafeAreaView>
   );
 };

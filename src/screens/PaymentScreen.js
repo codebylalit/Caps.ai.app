@@ -11,11 +11,14 @@ import {
   NativeEventEmitter,
   NativeModules,
   ActivityIndicator,
+  Animated,
+  Dimensions,
 } from "react-native";
 import tw from "twrnc";
 import { RAZORPAY_KEY_ID } from '../config/razorpay';
 import RazorpayService from '../services/razorpay';
 import { colors, commonStyles } from '../theme/colors';
+import { FontAwesome } from '@expo/vector-icons';
 
 let RazorpayCheckout;
 let razorpayEvents;
@@ -28,19 +31,208 @@ if (Platform.OS === 'android') {
 }
 
 const creditPackages = [
-  { credits: 50, price: 9, popular: false, discount: false, label: "Starter" },
-  {
-    credits: 250, price: 29, originalPrice: 50,
-    popular: true, discount: true, savings: "₹21", label: "Best Value"
+  { 
+    credits: 100, 
+    price: 9, 
+    originalPrice: 19,
+    popular: false, 
+    discount: true, 
+    savings: "₹10", 
+    label: "Starter"
   },
-  { credits: 500, price: 99, popular: false, discount: false, label: "Pro Pack" },
+  {
+    credits: 500, 
+    price: 39, 
+    originalPrice: 79,
+    popular: true, 
+    discount: true, 
+    savings: "₹40", 
+    label: "Best Value"
+  },
+  { 
+    credits: 1200, 
+    price: 79, 
+    originalPrice: 149,
+    popular: false, 
+    discount: true, 
+    savings: "₹70", 
+    label: "Pro Pack"
+  },
 ];
+
+// Add ThemedNotification component
+const ThemedNotification = ({ type, message, onClose }) => {
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [translateY] = useState(new Animated.Value(-20));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const getNotificationStyle = () => {
+    switch (type) {
+      case "success":
+        return { backgroundColor: colors.accent.sage, icon: "check-circle" };
+      case "error":
+        return {
+          backgroundColor: colors.accent.orange,
+          icon: "exclamation-circle",
+        };
+      case "warning":
+        return {
+          backgroundColor: colors.accent.olive,
+          icon: "exclamation-triangle",
+        };
+      case "info":
+        return { backgroundColor: colors.accent.orange, icon: "info-circle" };
+      default:
+        return { backgroundColor: colors.accent.sage, icon: "info-circle" };
+    }
+  };
+  const style = getNotificationStyle();
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 50 : 30,
+        left: 20,
+        right: 20,
+        opacity: fadeAnim,
+        transform: [{ translateY }],
+        zIndex: 1000,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: style.backgroundColor,
+          borderRadius: commonStyles.borderRadius.medium,
+          padding: commonStyles.spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          ...commonStyles.shadow.medium,
+        }}
+      >
+        <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
+        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+          {message}
+        </Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
+            <FontAwesome name="times" size={16} color={colors.text.light} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
+
+// Add CelebrationEffect component
+const CelebrationEffect = ({ onComplete }) => {
+  const [particles] = useState(() => Array(50).fill().map(() => ({
+    x: new Animated.Value(Dimensions.get('window').width / 2),
+    y: new Animated.Value(Dimensions.get('window').height / 2),
+    scale: new Animated.Value(0),
+    opacity: new Animated.Value(1),
+    rotation: new Animated.Value(0),
+    color: [colors.accent.sage, colors.accent.orange, colors.accent.olive, colors.accent.deepGreen][Math.floor(Math.random() * 4)],
+  })));
+
+  useEffect(() => {
+    const animations = particles.map((particle, index) => {
+      const angle = (index / particles.length) * Math.PI * 2;
+      const distance = 200 + Math.random() * 100;
+      const duration = 1000 + Math.random() * 1000;
+
+      return Animated.parallel([
+        Animated.timing(particle.x, {
+          toValue: Math.cos(angle) * distance + Dimensions.get('window').width / 2,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(particle.y, {
+          toValue: Math.sin(angle) * distance + Dimensions.get('window').height / 2,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(particle.scale, {
+          toValue: 1,
+          duration: duration * 0.3,
+          useNativeDriver: true,
+        }),
+        Animated.timing(particle.opacity, {
+          toValue: 0,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(particle.rotation, {
+          toValue: Math.random() * 360,
+          duration,
+          useNativeDriver: true,
+        }),
+      ]);
+    });
+
+    Animated.parallel(animations).start(() => {
+      if (onComplete) onComplete();
+    });
+  }, []);
+
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+      {particles.map((particle, index) => (
+        <Animated.View
+          key={index}
+          style={{
+            position: 'absolute',
+            width: 8,
+            height: 8,
+            backgroundColor: particle.color,
+            borderRadius: 4,
+            transform: [
+              { translateX: particle.x },
+              { translateY: particle.y },
+              { scale: particle.scale },
+              { rotate: particle.rotation.interpolate({
+                inputRange: [0, 360],
+                outputRange: ['0deg', '360deg'],
+              })},
+            ],
+            opacity: particle.opacity,
+          }}
+        />
+      ))}
+    </View>
+  );
+};
 
 const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActiveMode, setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [transactionId, setTransactionId] = useState(null);
   const [processingPlan, setProcessingPlan] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Add notification handler
+  const showNotification = (type, message, duration = 3000) => {
+    setNotification({ type, message });
+    if (duration) {
+      setTimeout(() => setNotification(null), duration);
+    }
+  };
 
   useEffect(() => {
     fetchTransactions();
@@ -134,7 +326,6 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         order_id: razorpay_order_id
       });
       
-      // Update payment status to processing
       await supabase.from("payments")
         .update({
           status: "processing",
@@ -151,42 +342,20 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         razorpay_signature
       });
 
-      console.log('Payment verification result:', verificationResult);
-
       if (verificationResult) {
         console.log('Payment verified successfully');
-        
-        // The Edge Function has already:
-        // 1. Updated payment status to success
-        // 2. Added credits to the user's account
-        
-        // Refresh the UI
         await fetchUserCredits();
         await fetchTransactions();
         
-        Alert.alert(
-          "Payment Successful",
-          "Your credits have been added to your account!",
-          [{
-            text: "OK",
-            onPress: () => {
-              // Redirect to generator screen
-              setActiveMode(null);
-            }
-          }]
-        );
+        showNotification('success', 'Payment successful! Your credits have been added to your account.');
+        setShowCelebration(true);
       } else {
         throw new Error('Payment verification failed');
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      Alert.alert(
-        "Payment Error",
-        error.message || "There was an error processing your payment.",
-        [{ text: "OK" }]
-      );
+      showNotification('error', error.message || "There was an error processing your payment.");
       
-      // Update payment status to failed
       await supabase.from("payments")
         .update({
           status: "failed",
@@ -244,15 +413,14 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
           })
           .eq("transaction_id", transactionId);
 
-        Alert.alert(
-          url.includes('payment/cancel') ? "Payment Cancelled" : "Payment Failed", 
-          url.includes('payment/cancel') ? "The payment was cancelled." : "The payment failed. Please try again.", 
-          [{ text: "OK" }]
+        showNotification(
+          url.includes('payment/cancel') ? 'warning' : 'error',
+          url.includes('payment/cancel') ? "The payment was cancelled." : "The payment failed. Please try again."
         );
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      Alert.alert("Payment Error", error.message || "There was an error processing your payment.", [{ text: "OK" }]);
+      showNotification('error', error.message || "There was an error processing your payment.");
       
       await supabase.from("payments")
         .update({ 
@@ -307,7 +475,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     }
 
     if (error?.code !== 0) {
-      Alert.alert("Payment Failed", error?.description || error?.message || "Payment failed", [{ text: "OK" }]);
+      showNotification('error', error?.description || error?.message || "Payment failed");
     }
 
     setTransactionId(null);
@@ -341,22 +509,10 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
       await Promise.all([fetchUserCredits(), fetchTransactions()]);
 
-      Alert.alert(
-        "Success", 
-        `${selectedPackage.credits} credits added to your account`,
-        [
-          { 
-            text: "OK",
-            onPress: () => {
-              // Redirect to generator screen
-              setActiveMode(null);
-            }
-          }
-        ]
-      );
+      showNotification('success', `${selectedPackage.credits} credits added to your account`);
     } catch (error) {
       console.error("Error:", error);
-      Alert.alert("Error", error.message || "Failed to add credits.", [{ text: "OK" }]);
+      showNotification('error', error.message || "Failed to add credits.");
     } finally {
       setLoading(false);
     }
@@ -364,7 +520,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
   const handlePurchase = async (pkg) => {
     if (!user) {
-      Alert.alert("Error", "Please log in to make a payment");
+      showNotification('warning', "Please log in to make a payment");
       return;
     }
 
@@ -410,7 +566,6 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
       console.log('Payment successful:', paymentData);
 
-      // Handle the payment success
       await handlePaymentSuccess({
         razorpay_payment_id: paymentData.razorpay_payment_id,
         razorpay_order_id: paymentData.razorpay_order_id,
@@ -431,7 +586,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         })
         .eq("transaction_id", txnId);
 
-      Alert.alert("Payment Error", error.message || "Failed to start payment", [{ text: "OK" }]);
+      showNotification('error', error.message || "Failed to start payment");
     } finally {
       if (!transactionId) setLoading(false);
     }
@@ -439,6 +594,19 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
   return (
     <View style={{ flex: 1 }}>
+      {showCelebration && (
+        <CelebrationEffect onComplete={() => setShowCelebration(false)} />
+      )}
+      
+      {/* Add notification component */}
+      {notification && (
+        <ThemedNotification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
       <View
         style={[
           tw`rounded-lg mb-4`,
@@ -479,11 +647,12 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               tw`mb-4 p-4 rounded-lg`,
               { backgroundColor: colors.background.card },
               commonStyles.shadow.light,
+              pkg.popular && { borderWidth: 2, borderColor: colors.accent.sage }
             ]}
             onPress={() => handlePurchase(pkg)}
             disabled={loading}
           >
-            <View style={tw`flex-row justify-between items-center mb-2`}>
+            <View style={tw`flex-row justify-between items-center`}>
               <View>
                 <Text
                   style={[
@@ -515,6 +684,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                 )}
               </View>
             </View>
+
             {pkg.popular && (
               <View
                 style={[

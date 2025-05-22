@@ -23,6 +23,7 @@ const UserDashboard = ({
   setActiveMode,
   deleteHistoryItem,
   supabase,
+  activeMode,
   setActiveTab,
 }) => {
   const { userProfile, fetchUserProfile } = useAuth();
@@ -50,6 +51,25 @@ const UserDashboard = ({
       setLoadingTransactions(false);
     }
   };
+
+  const getThemeColor = () => {
+    if (!activeMode) return colors.accent.sage;
+    
+    switch (activeMode) {
+      case "mood":
+        return colors.accent.sage;
+      case "niche":
+        return colors.accent.orange;
+      case "image":
+        return colors.accent.olive;
+      case "textbehind":
+        return colors.accent.purple;
+      default:
+        return colors.accent.orange;
+    }
+  };
+
+  const themeColor = getThemeColor();
 
   const handleCopy = async (item) => {
     const textToCopy = `${item.caption}\n\n${
@@ -131,15 +151,12 @@ const UserDashboard = ({
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
                 style={[
-                  tw`p-2 rounded-full ml-3`,
-                  { backgroundColor: colors.background.card },
+                  tw`p-2 rounded-xl ml-3`,
+                  { backgroundColor: themeColor },
+                  commonStyles.shadow.light,
                 ]}
               >
-                <FontAwesome
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text.primary}
-                />
+                <FontAwesome name="arrow-left" size={16} color="white" />
               </TouchableOpacity>
             </View>
             {history.length === 0 ? (
@@ -300,15 +317,12 @@ const UserDashboard = ({
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
                 style={[
-                  tw`p-2 rounded-full ml-3`,
-                  { backgroundColor: colors.background.card },
+                  tw`p-2 rounded-xl ml-3`,
+                  { backgroundColor: themeColor },
+                  commonStyles.shadow.light,
                 ]}
               >
-                <FontAwesome
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text.primary}
-                />
+                <FontAwesome name="arrow-left" size={16} color="white" />
               </TouchableOpacity>
             </View>
             <PaymentScreen
@@ -343,15 +357,12 @@ const UserDashboard = ({
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
                 style={[
-                  tw`p-2 rounded-full ml-3`,
-                  { backgroundColor: colors.background.card },
+                  tw`p-2 rounded-xl ml-3`,
+                  { backgroundColor: themeColor },
+                  commonStyles.shadow.light,
                 ]}
               >
-                <FontAwesome
-                  name="arrow-left"
-                  size={16}
-                  color={colors.text.primary}
-                />
+                <FontAwesome name="arrow-left" size={16} color="white" />
               </TouchableOpacity>
             </View>
 
