@@ -790,7 +790,7 @@ const GeneratorContent = ({
       )}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[tw`px-4 py-6`, { gap: 24 }]}
+        contentContainerStyle={[tw`px-4 pb-32`, { gap: 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {renderLengthSelector()}
@@ -974,7 +974,7 @@ const GeneratorContent = ({
         )}
 
         {hashtags.length > 0 && (
-          <View style={tw`mt-4`}>
+          <View style={tw`mt-4 mb-8`}>
             <View style={tw`flex-row justify-between items-center mb-4`}>
               <View style={tw`flex-row items-center`}>
                 <FontAwesome

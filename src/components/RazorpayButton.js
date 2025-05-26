@@ -209,24 +209,22 @@ const RazorpayButton = ({
         description: `${plan} Credits Purchase`,
         email: user.email,
         contact: user.phone || '',
-        name: user.name || ''
+        name: user.name || '',
+        businessName: 'Caps.ai'
       });
 
     } catch (error) {
       console.error('Payment error:', error);
-      setTransactionId(null);
       
-      // Update payment status to failed
-      if (txnId) {
-        await supabase
-          .from("payments")
-          .update({ 
-            status: "failed",
-            error_description: error.message || 'Unknown error',
-            verified: false
-          })
-          .eq("transaction_id", txnId);
-      }
+      // Always update payment status to failed when there's an error
+      await supabase
+        .from("payments")
+        .update({ 
+          status: "failed", 
+          error_description: error.message || 'Unknown error',
+          verified: false 
+        })
+        .eq("transaction_id", txnId);
 
       Alert.alert(
         "Payment Error",
@@ -234,9 +232,8 @@ const RazorpayButton = ({
         [{ text: "OK" }]
       );
     } finally {
-      if (!transactionId) {
-        setLoading(false);
-      }
+      setTransactionId(null);
+      setLoading(false);
     }
   };
 

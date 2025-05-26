@@ -518,7 +518,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     }
   };
 
-  const handlePurchase = async (pkg) => {
+  const handlePayment = async (pkg) => {
     if (!user) {
       showNotification('warning', "Please log in to make a payment");
       return;
@@ -541,7 +541,9 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
           credits_added: false,
         });
 
-      if (paymentInitError) throw new Error('Failed to initialize payment');
+      if (paymentInitError) {
+        throw new Error('Failed to initialize payment');
+      }
 
       const orderData = await RazorpayService.createOrder({
         amount: pkg.price * 100,
@@ -550,7 +552,9 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         notes: { plan: pkg.credits.toString(), userId: user.id }
       });
 
-      if (!orderData?.id) throw new Error('Failed to create payment order');
+      if (!orderData?.id) {
+        throw new Error('Failed to create payment order');
+      }
 
       console.log('Starting payment with order:', orderData.id);
       
@@ -561,7 +565,8 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         description: `${pkg.credits} Credits Purchase`,
         email: user.email,
         contact: user.phone || '',
-        name: user.name || ''
+        name: user.name || '',
+        businessName: 'Caps.ai'
       });
 
       console.log('Payment successful:', paymentData);
@@ -574,9 +579,8 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
     } catch (error) {
       console.error('Payment error:', error);
-      setTransactionId(null);
-      setProcessingPlan(null);
-
+      
+      // Always update payment status to failed when there's an error
       await supabase
         .from("payments")
         .update({ 
@@ -588,7 +592,9 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
       showNotification('error', error.message || "Failed to start payment");
     } finally {
-      if (!transactionId) setLoading(false);
+      setTransactionId(null);
+      setProcessingPlan(null);
+      setLoading(false);
     }
   };
 
@@ -649,7 +655,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               commonStyles.shadow.light,
               pkg.popular && { borderWidth: 2, borderColor: colors.accent.sage }
             ]}
-            onPress={() => handlePurchase(pkg)}
+            onPress={() => handlePayment(pkg)}
             disabled={loading}
           >
             <View style={tw`flex-row justify-between items-center`}>
@@ -783,14 +789,20 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                       color:
                         transaction.status === "success"
                           ? colors.status.success
+                          : transaction.status === "processing"
+                          ? colors.status.warning
                           : transaction.status === "pending"
                           ? colors.status.warning
                           : colors.status.error,
                     },
                   ]}
                 >
-                  {transaction.status.charAt(0).toUpperCase() +
-                    transaction.status.slice(1)}
+                  {transaction.status === "processing" 
+                    ? "Processing"
+                    : transaction.status === "failed"
+                    ? "Failed"
+                    : transaction.status.charAt(0).toUpperCase() +
+                      transaction.status.slice(1)}
                 </Text>
                 <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
                   {new Date(transaction.created_at).toLocaleDateString()}

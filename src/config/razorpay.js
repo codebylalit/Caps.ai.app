@@ -1,4 +1,4 @@
-export const RAZORPAY_KEY_ID = 'rzp_test_81EDjx64a4TpUr';
+export const RAZORPAY_KEY_ID = "rzp_live_m1qfDdgI9r1AGQ";
 
 const SUPABASE_PROJECT_REF = 'zkojmfnmjqqvbrtbteyu';
 const SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
@@ -7,11 +7,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 export const createRazorpayOrder = async (amount) => {
   const finalAmount = Math.round(amount); // assuming amount is in INR
   console.log('Creating Razorpay order for amount (in paise):', finalAmount);
+  console.log('Using Supabase URL:', SUPABASE_URL);
+  console.log('Using Supabase Anon Key:', SUPABASE_ANON_KEY);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
 
   try {
+    console.log('Sending request to super-worker with payload:', {
+      amount: finalAmount,
+      timestamp: new Date().toISOString(),
+      action: 'create_order',
+    });
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/super-worker`, {
       method: 'POST',
       headers: {
@@ -27,6 +35,8 @@ export const createRazorpayOrder = async (amount) => {
     });
 
     clearTimeout(timeoutId);
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     const rawText = await response.text();
     console.log('Raw response:', rawText);

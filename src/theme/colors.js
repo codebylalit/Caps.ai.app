@@ -2,54 +2,55 @@
 export const colors = {
   // Primary colors
   primary: {
-    main: '#2C3E50',    // Dark blue-gray for main text and icons
-    light: '#34495E',   // Lighter blue-gray for secondary text
-    dark: '#1A252F',    // Darker blue-gray for emphasis
+    main: "#2C3E50", // Dark blue-gray for main text and icons
+    light: "#34495E", // Lighter blue-gray for secondary text
+    dark: "#1A252F", // Darker blue-gray for emphasis
   },
-  
+
   // Background colors
   background: {
-    main: '#FCFBF1',    // Off-white main background
-    card: '#FFFFFF',    // White for cards
-    modal: '#1E293B',   // Dark for modals
+    main: "#FCFBF1", // Off-white main background
+    card: "#FFFFFF", // White for cards
+    modal: "#1E293B", // Dark for modals
   },
-  
+
   // Accent colors
   accent: {
-    sage: '#788D7C',    // Sage green
-    beige: '#C7A59D',   // Beige
-    orange: '#BC705B',  // Orange
-    olive: '#88A07A',   // Olive green
-    deepGreen: '#3B5C3A', // Deep green
+    sage: "#503D3F", // Sage green
+    beige: "#C7A59D", // Beige
+    orange: "#66B2B2", // Orange
+    olive: "#5D8472", // Olive green
+    deepGreen: "#3B5C3A", // Deep green
+    teal: "#66B2B2", // Teal from logo
   },
-  
+
   // Text colors
   text: {
-    primary: '#2C3E50',   // Main text color
-    secondary: '#34495E', // Secondary text color
-    light: '#FFFFFF',     // Light text (on dark backgrounds)
-    muted: '#94A3B8',     // Muted text
+    primary: "#2C3E50", // Main text color
+    secondary: "#34495E", // Secondary text color
+    light: "#FFFFFF", // Light text (on dark backgrounds)
+    muted: "#94A3B8", // Muted text
   },
-  
+
   // Status colors
   status: {
-    success: '#34D399',   // Green
-    warning: '#FBBF24',   // Yellow
-    error: '#EF4444',     // Red
-    info: '#60A5FA',      // Blue
+    success: "#34D399", // Green
+    warning: "#FBBF24", // Yellow
+    error: "#EF4444", // Red
+    info: "#60A5FA", // Blue
   },
-  
+
   // Border colors
   border: {
-    light: '#E2E8F0',    // Light border
-    dark: '#CBD5E1',     // Dark border
+    light: "#E2E8F0", // Light border
+    dark: "#CBD5E1", // Dark border
   },
-  
+
   // Shadow colors
   shadow: {
-    light: 'rgba(0, 0, 0, 0.1)',
-    dark: 'rgba(0, 0, 0, 0.2)',
-  }
+    light: "rgba(0, 0, 0, 0.1)",
+    dark: "rgba(0, 0, 0, 0.2)",
+  },
 };
 
 // Theme configuration for different modes

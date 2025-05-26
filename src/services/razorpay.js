@@ -51,6 +51,7 @@ interface PaymentOptions {
   email: string;
   contact: string;
   name: string;
+  businessName?: string;
 }
 
 // Initialize RazorpayCheckout with proper typing
@@ -106,7 +107,7 @@ class RazorpayService {
       key: RAZORPAY_KEY_ID,
       amount: options.amount,
       currency: options.currency,
-      name: 'Caps.ai',
+      name: options.businessName || 'Caps.ai',
       description: options.description,
       order_id: options.orderId,
       prefill: {
@@ -115,7 +116,7 @@ class RazorpayService {
         name: options.name
       },
       theme: {
-        color: '#FB923C'
+        color: '#FB923B'
       },
       send_sms_hash: true,
       remember_customer: true,

@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Caps.ai",
+    "name": "Hashly",
     "slug": "capsai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/Hashly.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/HashlyT.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFF5E1"
+      "backgroundColor": "#74B3AD"
     },
     "ios": {
       "supportsTablet": true,

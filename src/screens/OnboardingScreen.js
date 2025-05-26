@@ -29,7 +29,7 @@ const OnboardingScreen = ({ onComplete }) => {
       title: "Welcome to Hashly",
       description: "Your AI-powered social media companion for engaging captions and trending hashtags",
       icon: "magic",
-      gradient: [colors.accent.sage, colors.accent.olive],
+      gradient: [colors.accent.orange, colors.accent.olive],
     },
     {
       id: 2,
@@ -43,7 +43,7 @@ const OnboardingScreen = ({ onComplete }) => {
       title: "Ready to Shine?",
       description: "Join creators who are making their content stand out with Hashly",
       icon: "rocket",
-      gradient: [colors.accent.olive, colors.accent.sage],
+      gradient: [colors.accent.sage, colors.accent.orange],
     },
   ];
 
@@ -119,7 +119,7 @@ const OnboardingScreen = ({ onComplete }) => {
               {
                 width: `${100 / slides.length}%`,
                 transform: [{ translateX }],
-                backgroundColor: colors.accent.sage,
+                backgroundColor: colors.accent.orange,
               },
             ]}
           />
@@ -168,14 +168,14 @@ const OnboardingScreen = ({ onComplete }) => {
           style={[
             tw`mb-3 py-3 rounded-full border`,
             { 
-              borderColor: colors.accent.sage, 
+              borderColor: colors.accent.orange, 
               alignItems: "center",
               ...commonStyles.shadow.light,
             },
           ]}
         >
           <Text
-            style={[tw`text-base font-medium`, { color: colors.accent.sage }]}
+            style={[tw`text-base font-medium`, { color: colors.accent.orange }]}
           >
             Skip
           </Text>
@@ -206,7 +206,7 @@ const OnboardingScreen = ({ onComplete }) => {
           style={[
             tw`py-3 rounded-full`,
             {
-              backgroundColor: colors.accent.sage,
+              backgroundColor: colors.accent.orange,
               alignItems: "center",
               ...commonStyles.shadow.medium,
             },

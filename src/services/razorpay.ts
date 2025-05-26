@@ -106,22 +106,22 @@ class RazorpayService {
       key: RAZORPAY_KEY_ID,
       amount: options.amount,
       currency: options.currency,
-      name: 'Caps.ai',
+      name: "Hashly",
       description: options.description,
       order_id: options.orderId,
       prefill: {
         email: options.email,
         contact: options.contact,
-        name: options.name
+        name: options.name,
       },
       theme: {
-        color: '#FB923C'
+        color: "#66B2B2",
       },
       send_sms_hash: true,
       remember_customer: true,
       external: {
-        wallets: ['paytm', 'gpay', 'phonepe']
-      }
+        wallets: ["paytm", "gpay", "phonepe"],
+      },
     };
 
     try {

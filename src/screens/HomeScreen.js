@@ -131,6 +131,26 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
   const confettiRef = useRef(null);
   const [hasShownCelebration, setHasShownCelebration] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  // Add these constants
+  const TRENDING_SEARCHES = [
+    { text: 'Summer Vibes', count: '2.3M' },
+    { text: 'Food Photography', count: '1.8M' },
+    { text: 'Travel Diary', count: '1.5M' },
+    { text: 'Fitness Journey', count: '1.2M' }
+  ];
+
+  const SEARCH_CATEGORIES = [
+    { icon: 'camera', label: 'Photos' },
+    { icon: 'video-camera', label: 'Videos' },
+    { icon: 'hashtag', label: 'Hashtags' },
+    { icon: 'user', label: 'Users' }
+  ];
 
   // Define the function before using it in state initialization
   const getTimeBasedGreeting = () => {
@@ -449,6 +469,64 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
     }
   };
 
+  // Add this after other useEffect hooks
+  useEffect(() => {
+    // Load recent searches from AsyncStorage
+    const loadRecentSearches = async () => {
+      try {
+        const searches = await AsyncStorage.getItem('recentSearches');
+        if (searches) {
+          setRecentSearches(JSON.parse(searches));
+        }
+      } catch (error) {
+        console.error('Error loading recent searches:', error);
+      }
+    };
+    loadRecentSearches();
+  }, []);
+
+  const handleSearch = async (text) => {
+    setSearchQuery(text);
+    if (text.length > 0) {
+      setShowSearchResults(true);
+      // Simulate search suggestions (replace with actual API call)
+      const suggestions = [
+        'travel photography',
+        'food blogging',
+        'fitness journey',
+        'fashion trends',
+        'nature photography'
+      ].filter(item => item.toLowerCase().includes(text.toLowerCase()));
+      setSearchSuggestions(suggestions);
+    } else {
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    if (searchQuery.trim()) {
+      // Add to recent searches
+      const newRecentSearches = [searchQuery, ...recentSearches.filter(s => s !== searchQuery)].slice(0, 5);
+      setRecentSearches(newRecentSearches);
+      try {
+        await AsyncStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
+      } catch (error) {
+        console.error('Error saving recent searches:', error);
+      }
+      // Handle search submission
+      handleNavigation("search");
+    }
+  };
+
+  const clearRecentSearches = async () => {
+    setRecentSearches([]);
+    try {
+      await AsyncStorage.removeItem('recentSearches');
+    } catch (error) {
+      console.error('Error clearing recent searches:', error);
+    }
+  };
+
   if (showOnboarding) {
     return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
   }
@@ -481,10 +559,10 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
       <ConfettiCannon
         ref={confettiRef}
         count={200}
-        origin={{x: -10, y: 0}}
+        origin={{ x: -10, y: 0 }}
         autoStart={false}
         fadeOut={true}
-        colors={['#FFD700', '#FFA500', '#FF69B4', '#87CEEB', '#98FB98']}
+        colors={["#FFD700", "#FFA500", "#FF69B4", "#87CEEB", "#98FB98"]}
       />
       {/* Add notification component */}
       {notification && (
@@ -509,10 +587,15 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
             }}
           >
             {/* Header */}
-            <View style={[
-              tw`flex-row justify-between items-center mb-4`,
-              { minHeight: 60 }
-            ]}>
+            <View
+              style={[
+                tw`flex-row justify-between items-center mb-4 ${{
+                  backgroundColor: colors.background.card,
+                }},
+ `,
+                { minHeight: 60 },
+              ]}
+            >
               <View style={tw`flex-1 mr-4`}>
                 <ThemedWelcomeMessage
                   name={localUser?.name || displayName}
@@ -531,7 +614,8 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                     justifyContent: "center",
                     ...commonStyles.shadow.light,
                     flexShrink: 0,
-                    marginTop: -24
+                    marginTop: -24,
+                    borderWidth: 0.5,
                   }}
                 >
                   <Text
@@ -576,32 +660,199 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
             <View style={{ marginBottom: commonStyles.spacing.xl }}>
               <View
                 style={{
-                  backgroundColor: colors.accent.sage,
+                  backgroundColor: colors.background.card,
                   borderRadius: commonStyles.borderRadius.medium,
-                  paddingHorizontal: commonStyles.spacing.lg,
+                  paddingHorizontal: commonStyles.spacing.md,
                   paddingVertical: commonStyles.spacing.md,
                   flexDirection: "row",
                   alignItems: "center",
+                  borderWidth: 0.5,
                   ...commonStyles.shadow.light,
                 }}
               >
                 <FontAwesome
                   name="search"
                   size={18}
-                  color={colors.text.light}
-                  style={{ marginRight: commonStyles.spacing.sm }}
+                  color={colors.text.secondary}
+                  style={{ marginRight: commonStyles.spacing.xs }}
                 />
                 <TextInput
-                  placeholder="Search for content..."
-                  placeholderTextColor="rgba(255, 255, 255, 0.8)"
+                  placeholder="Search hashtags, captions, or styles..."
+                  placeholderTextColor={colors.text.secondary}
                   style={{
                     flex: 1,
-                    color: colors.text.light,
+                    color: colors.text.primary,
                     fontSize: 16,
-                    fontWeight: "500",
                   }}
+                  value={searchQuery}
+                  onChangeText={handleSearch}
+                  onSubmitEditing={handleSearchSubmit}
+                  returnKeyType="search"
                 />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearchQuery("");
+                      setShowSearchResults(false);
+                    }}
+                    style={{ padding: 5 }}
+                  >
+                    <FontAwesome name="times-circle" size={18} color={colors.text.secondary} />
+                  </TouchableOpacity>
+                )}
               </View>
+
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 60,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: colors.background.card,
+                    borderRadius: commonStyles.borderRadius.medium,
+                    padding: commonStyles.spacing.md,
+                    zIndex: 1000,
+                    ...commonStyles.shadow.medium,
+                  }}
+                >
+                  {/* Categories */}
+                  <View style={{ marginBottom: 15 }}>
+                    <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                      Categories
+                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      {SEARCH_CATEGORIES.map((category, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={{
+                            alignItems: 'center',
+                            width: '23%',
+                          }}
+                          onPress={() => setActiveFilter(category.label.toLowerCase())}
+                        >
+                          <View
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 25,
+                              backgroundColor: colors.background.main,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginBottom: 5,
+                              borderWidth: 1,
+                              borderColor: activeFilter === category.label.toLowerCase() ? colors.accent.sage : colors.background.main,
+                            }}
+                          >
+                            <FontAwesome name={category.icon} size={20} color={colors.text.primary} />
+                          </View>
+                          <Text style={{ color: colors.text.primary, fontSize: 12 }}>{category.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Trending Searches */}
+                  <View style={{ marginBottom: 15 }}>
+                    <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                      Trending Now
+                    </Text>
+                    {TRENDING_SEARCHES.map((trend, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: 8,
+                          borderBottomWidth: index < TRENDING_SEARCHES.length - 1 ? 1 : 0,
+                          borderBottomColor: colors.background.main,
+                        }}
+                        onPress={() => {
+                          setSearchQuery(trend.text);
+                          handleSearchSubmit();
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ color: colors.text.primary, fontSize: 14, marginRight: 8 }}>#{index + 1}</Text>
+                          <Text style={{ color: colors.text.primary, fontSize: 14 }}>{trend.text}</Text>
+                        </View>
+                        <Text style={{ color: colors.text.secondary, fontSize: 12 }}>{trend.count} posts</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Recent Searches */}
+                  {searchQuery.length === 0 && (
+                    <>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600' }}>
+                          Recent Searches
+                        </Text>
+                        {recentSearches.length > 0 && (
+                          <TouchableOpacity onPress={clearRecentSearches}>
+                            <Text style={{ color: colors.accent.sage, fontSize: 14 }}>Clear All</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      {recentSearches.length > 0 ? (
+                        recentSearches.map((search, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              paddingVertical: 10,
+                              borderBottomWidth: index < recentSearches.length - 1 ? 1 : 0,
+                              borderBottomColor: colors.background.main,
+                            }}
+                            onPress={() => {
+                              setSearchQuery(search);
+                              handleSearchSubmit();
+                            }}
+                          >
+                            <FontAwesome name="history" size={16} color={colors.text.secondary} style={{ marginRight: 10 }} />
+                            <Text style={{ color: colors.text.primary, fontSize: 14 }}>{search}</Text>
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <Text style={{ color: colors.text.secondary, fontSize: 14, textAlign: 'center', padding: 10 }}>
+                          No recent searches
+                        </Text>
+                      )}
+                    </>
+                  )}
+
+                  {/* Search Suggestions */}
+                  {searchQuery.length > 0 && (
+                    <>
+                      <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                        Suggestions
+                      </Text>
+                      {searchSuggestions.map((suggestion, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingVertical: 10,
+                            borderBottomWidth: index < searchSuggestions.length - 1 ? 1 : 0,
+                            borderBottomColor: colors.background.main,
+                          }}
+                          onPress={() => {
+                            setSearchQuery(suggestion);
+                            handleSearchSubmit();
+                          }}
+                        >
+                          <FontAwesome name="search" size={16} color={colors.text.secondary} style={{ marginRight: 10 }} />
+                          <Text style={{ color: colors.text.primary, fontSize: 14 }}>{suggestion}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Content Creation Section */}
@@ -721,73 +972,93 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
           borderTopWidth: 1,
           borderLeftWidth: 1,
           borderRightWidth: 1,
-          borderColor: 'rgba(0,0,0,0.05)',
+          borderColor: "rgba(0,0,0,0.05)",
           ...commonStyles.shadow.medium,
-          position: 'absolute',
+          position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          paddingBottom: Platform.OS === 'ios' ? 20 : commonStyles.spacing.md,
+          paddingBottom: Platform.OS === "ios" ? 20 : commonStyles.spacing.md,
           marginHorizontal: 8,
         }}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={{ alignItems: "center" }}
-          onPress={() => animateTab('home')}
+          onPress={() => animateTab("home")}
         >
           <Animated.View
             style={{
               transform: [{ scale: tabAnimations.home }],
-              backgroundColor: activeTab === 'home' ? colors.accent.sage + '20' : 'transparent',
+              backgroundColor:
+                activeTab === "home"
+                  ? colors.accent.sage + "20"
+                  : "transparent",
               padding: 12,
               borderRadius: 12,
             }}
           >
-            <FontAwesome 
-              name="home" 
-              size={22} 
-              color={activeTab === 'home' ? colors.accent.sage : colors.text.secondary} 
+            <FontAwesome
+              name="home"
+              size={22}
+              color={
+                activeTab === "home"
+                  ? colors.accent.sage
+                  : colors.text.secondary
+              }
             />
           </Animated.View>
           <Text
             style={{
-              color: activeTab === 'home' ? colors.accent.sage : colors.text.secondary,
+              color:
+                activeTab === "home"
+                  ? colors.accent.sage
+                  : colors.text.secondary,
               fontSize: 12,
               marginTop: 4,
-              fontWeight: activeTab === 'home' ? "700" : "500",
+              fontWeight: activeTab === "home" ? "700" : "500",
             }}
           >
             Home
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={{ alignItems: "center" }}
           onPress={() => {
-            animateTab('create');
+            animateTab("create");
             showModal();
           }}
         >
           <Animated.View
             style={{
               transform: [{ scale: tabAnimations.create }],
-              backgroundColor: activeTab === 'create' ? colors.accent.orange + '20' : 'transparent',
+              backgroundColor:
+                activeTab === "create"
+                  ? colors.accent.teal + "20"
+                  : "transparent",
               padding: 12,
               borderRadius: 12,
             }}
           >
-            <FontAwesome 
-              name="plus" 
-              size={22} 
-              color={activeTab === 'create' ? colors.accent.orange : colors.text.secondary} 
+            <FontAwesome
+              name="plus"
+              size={22}
+              color={
+                activeTab === "create"
+                  ? colors.accent.teal
+                  : colors.text.secondary
+              }
             />
           </Animated.View>
           <Text
             style={{
-              color: activeTab === 'create' ? colors.accent.orange : colors.text.secondary,
+              color:
+                activeTab === "create"
+                  ? colors.accent.teal
+                  : colors.text.secondary,
               fontSize: 12,
               marginTop: 4,
-              fontWeight: activeTab === 'create' ? "700" : "500",
+              fontWeight: activeTab === "create" ? "700" : "500",
             }}
           >
             Create
@@ -797,30 +1068,40 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
         <TouchableOpacity
           style={{ alignItems: "center" }}
           onPress={() => {
-            animateTab('profile');
+            animateTab("profile");
             user ? setShowProfile(true) : setShowAuth(true);
           }}
         >
           <Animated.View
             style={{
               transform: [{ scale: tabAnimations.profile }],
-              backgroundColor: activeTab === 'profile' ? colors.accent.purple + '20' : 'transparent',
+              backgroundColor:
+                activeTab === "profile"
+                  ? colors.accent.purple + "20"
+                  : "transparent",
               padding: 12,
               borderRadius: 12,
             }}
           >
-            <FontAwesome 
-              name="user" 
-              size={22} 
-              color={activeTab === 'profile' ? colors.accent.purple : colors.text.secondary} 
+            <FontAwesome
+              name="user"
+              size={22}
+              color={
+                activeTab === "profile"
+                  ? colors.accent.purple
+                  : colors.text.secondary
+              }
             />
           </Animated.View>
           <Text
             style={{
-              color: activeTab === 'profile' ? colors.accent.purple : colors.text.secondary,
+              color:
+                activeTab === "profile"
+                  ? colors.accent.purple
+                  : colors.text.secondary,
               fontSize: 12,
               marginTop: 4,
-              fontWeight: activeTab === 'profile' ? "700" : "500",
+              fontWeight: activeTab === "profile" ? "700" : "500",
             }}
           >
             Profile
@@ -839,7 +1120,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
           <View
             style={{
               flex: 1,
-              backgroundColor: "rgba(0,0,0,0.35)",
+              backgroundColor: "rgba(0,0,0,0.8)",
               justifyContent: "center",
               alignItems: "center",
             }}
@@ -847,145 +1128,123 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
             <TouchableWithoutFeedback>
               <Animated.View
                 style={{
-                  width: 320,
-                  backgroundColor: colors.background.card,
-                  borderRadius: commonStyles.borderRadius.large,
-                  padding: 28,
+                  width: 280,
+                  padding: 20,
                   alignItems: "center",
-                  ...commonStyles.shadow.medium,
                   opacity: modalOpacity,
                   transform: [{ scale: modalScale }],
                 }}
               >
-                <Text
+                <View
                   style={{
-                    color: colors.text.primary,
-                    fontSize: 24,
-                    fontWeight: "800",
-                    marginBottom: 8,
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    gap: 20,
                   }}
                 >
-                  Create New Content
-                </Text>
-                <Text
-                  style={{
-                    color: colors.text.secondary,
-                    fontSize: 16,
-                    fontWeight: "500",
-                    marginBottom: 24,
-                    textAlign: "center",
-                  }}
-                >
-                  Choose your preferred method
-                </Text>
-                <TouchableOpacity
-                  style={{
-                    width: "100%",
-                    backgroundColor: colors.accent.sage,
-                    borderRadius: commonStyles.borderRadius.medium,
-                    padding: 18,
-                    marginBottom: 16,
-                    alignItems: "center",
-                    ...commonStyles.shadow.light,
-                  }}
-                  onPress={() => {
-                    hideModal();
-                    handleNavigation("mood");
-                  }}
-                >
-                  <Text
+                  <TouchableOpacity
                     style={{
-                      color: colors.text.light,
-                      fontSize: 18,
-                      fontWeight: "700",
-                      marginBottom: 2,
+                      width: 90,
+                      height: 90,
+                      borderRadius: 12,
+                      padding: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.accent.sage,
+                      backgroundColor: colors.accent.sage,
+                    }}
+                    onPress={() => {
+                      hideModal();
+                      handleNavigation("mood");
                     }}
                   >
-                    Smart Captions
-                  </Text>
-                  <Text
+                    <FontAwesome
+                      name="magic"
+                      size={28}
+                      color={colors.text.light}
+                    />
+                    <Text
+                      style={{
+                        color: colors.text.light,
+                        fontSize: 13,
+                        marginTop: 8,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Caption
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={{
-                      color: colors.text.light,
-                      fontSize: 14,
-                      opacity: 0.9,
-                      fontWeight: "500",
+                      width: 90,
+                      height: 90,
+                      borderRadius: 12,
+                      padding: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.accent.orange,
+                      backgroundColor: colors.accent.orange,
+                    }}
+                    onPress={() => {
+                      hideModal();
+                      handleNavigation("niche");
                     }}
                   >
-                    Generate AI-powered captions
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    width: "100%",
-                    backgroundColor: colors.accent.orange,
-                    borderRadius: commonStyles.borderRadius.medium,
-                    padding: 18,
-                    marginBottom: 16,
-                    alignItems: "center",
-                    ...commonStyles.shadow.light,
-                  }}
-                  onPress={() => {
-                    hideModal();
-                    handleNavigation("niche");
-                  }}
-                >
-                  <Text
+                    <FontAwesome
+                      name="hashtag"
+                      size={28}
+                      color={colors.text.light}
+                    />
+                    <Text
+                      style={{
+                        color: colors.text.light,
+                        fontSize: 13,
+                        marginTop: 8,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Hashtags
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={{
-                      color: colors.text.light,
-                      fontSize: 18,
-                      fontWeight: "700",
-                      marginBottom: 2,
+                      width: 90,
+                      height: 90,
+                      borderRadius: 12,
+                      padding: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.accent.olive,
+                      backgroundColor: colors.accent.olive,
+                    }}
+                    onPress={() => {
+                      hideModal();
+                      handleNavigation("image");
                     }}
                   >
-                    Hashtag Pro
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.text.light,
-                      fontSize: 14,
-                      opacity: 0.9,
-                      fontWeight: "500",
-                    }}
-                  >
-                    Find trending hashtags
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    width: "100%",
-                    backgroundColor: colors.accent.olive,
-                    borderRadius: commonStyles.borderRadius.medium,
-                    padding: 18,
-                    marginBottom: 16,
-                    alignItems: "center",
-                    ...commonStyles.shadow.light,
-                  }}
-                  onPress={() => {
-                    hideModal();
-                    handleNavigation("image");
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: colors.text.light,
-                      fontSize: 18,
-                      fontWeight: "700",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Image Captions
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.text.light,
-                      fontSize: 14,
-                      opacity: 0.9,
-                      fontWeight: "500",
-                    }}
-                  >
-                    Create image-based captions
-                  </Text>
-                </TouchableOpacity>
+                    <FontAwesome
+                      name="image"
+                      size={28}
+                      color={colors.text.light}
+                    />
+                    <Text
+                      style={{
+                        color: colors.text.light,
+                        fontSize: 13,
+                        marginTop: 8,
+                        fontWeight: "600",
+                      }}
+                    >
+                      image
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
             </TouchableWithoutFeedback>
           </View>
@@ -994,7 +1253,9 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
 
       {/* Auth Screen Modal */}
       {authScreenVisible && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <View
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <AuthScreen onClose={handleAuthClose} />
         </View>
       )}
