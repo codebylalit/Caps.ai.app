@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Development
+.git/
+.github/
+.vscode/
+*.md
+*.log
+
+# Build artifacts
+.expo/
+dist/
+build/
+*.tsbuildinfo
+
+# Testing
+coverage/
+__tests__/
+*.test.*
+*.spec.*
+
+# Misc
+.DS_Store
+.env*
+*.pem
+*.key
+*.cert
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.wmv
+
+# Documentation
+docs/
+*.pdf
+*.doc
+*.docx
+
+# Temporary files
+*.tmp
+*.temp
+.cache/ 
