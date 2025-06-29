@@ -22,15 +22,28 @@ export const colors = {
     olive: "#5D8472", // Olive green
     deepGreen: "#3B5C3A", // Deep green
     teal: "#66B2B2", // Teal from logo
+    blue: "#4F8EF7", // Soft blue
+    purple: "#8F5FE8", // Modern purple
+    pink: "#FF6F91", // Vibrant pink
+    yellow: "#FFD166", // Warm yellow
+    yellowLight: "#FFE89E",
+    yellowDark: "#D4A437",
+    yellowDarker: "#A37622",
+    red: "#FF5A5F", // Bright red
+    cyan: "#22D3EE", // Bright cyan
+    indigo: "#6366F1", // Modern indigo
+    gold: "#FFD700", // Classic gold
   },
 
-  // Text colors
-  text: {
-    primary: "#2C3E50", // Main text color
-    secondary: "#34495E", // Secondary text color
-    light: "#FFFFFF", // Light text (on dark backgrounds)
-    muted: "#94A3B8", // Muted text
-  },
+ // Text colors
+text: {
+  primary: "#2C3E50",     // Main text color
+  secondary: "#34495E",   // Secondary text color
+  light: "#FFFFFF",       // Light text (on dark backgrounds)
+  muted: "#94A3B8",       // Muted text
+  black: "#000000",       // Pure black text
+},
+
 
   // Status colors
   status: {

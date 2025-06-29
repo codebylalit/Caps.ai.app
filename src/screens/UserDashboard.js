@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
@@ -14,6 +13,7 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import PaymentScreen from "./PaymentScreen";
 import { colors, commonStyles } from "../theme/colors";
+import AppText from '../components/AppText';
 
 const UserDashboard = ({
   activeTab,
@@ -54,16 +54,16 @@ const UserDashboard = ({
 
   const getThemeColor = () => {
     if (!activeMode) return colors.accent.sage;
-    
+
     switch (activeMode) {
       case "mood":
-        return colors.accent.sage;
+        return colors.accent.beige;
       case "niche":
         return colors.accent.orange;
       case "image":
-        return colors.accent.olive;
-      case "textbehind":
-        return colors.accent.purple;
+        return colors.accent.sage;
+      case "meme":
+        return colors.accent.yellowDark;
       default:
         return colors.accent.orange;
     }
@@ -72,9 +72,8 @@ const UserDashboard = ({
   const themeColor = getThemeColor();
 
   const handleCopy = async (item) => {
-    const textToCopy = `${item.caption}\n\n${
-      item.hashtags ? item.hashtags.map((tag) => `#${tag}`).join(" ") : ""
-    }`;
+    const textToCopy = `${item.caption}\n\n${item.hashtags ? item.hashtags.map((tag) => `#${tag}`).join(" ") : ""
+      }`;
     await Clipboard.setString(textToCopy);
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
@@ -94,14 +93,14 @@ const UserDashboard = ({
           backgroundColor={colors.background.main}
         />
         <View style={tw`flex-1 justify-center items-center p-4`}>
-          <Text
+          <AppText
             style={[
               tw`text-xl mb-4 text-center`,
               { color: colors.text.secondary },
             ]}
           >
             Please sign in to view your dashboard
-          </Text>
+          </AppText>
           <TouchableOpacity
             style={[
               tw`px-6 py-3 rounded-lg`,
@@ -110,9 +109,9 @@ const UserDashboard = ({
             ]}
             onPress={() => setShowAuth(true)}
           >
-            <Text style={[tw`font-semibold`, { color: colors.text.light }]}>
+            <AppText style={[tw`font-semibold`, { color: colors.text.light }]}>
               Sign In
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -139,14 +138,14 @@ const UserDashboard = ({
               ]}
             >
               <View style={tw`flex-1`}>
-                <Text
+                <AppText
                   style={[
                     tw`text-2xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   Generation History
-                </Text>
+                </AppText>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
@@ -173,22 +172,22 @@ const UserDashboard = ({
                   color={colors.text.muted}
                   style={tw`mb-3`}
                 />
-                <Text
+                <AppText
                   style={[
                     tw`text-lg font-semibold mb-1`,
                     { color: colors.text.primary },
                   ]}
                 >
                   No History Yet
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={[
                     tw`text-sm text-center`,
                     { color: colors.text.secondary },
                   ]}
                 >
                   Your generated captions and hashtags will appear here
-                </Text>
+                </AppText>
               </View>
             ) : (
               history.map((item) => (
@@ -218,14 +217,14 @@ const UserDashboard = ({
                           {item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} Mode
                         </Text>
                       </View> */}
-                      <Text
+                      <AppText
                         style={[
                           tw`text-base font-medium mb-1`,
                           { color: colors.text.primary },
                         ]}
                       >
                         {item.caption}
-                      </Text>
+                      </AppText>
                       {item.hashtags && (
                         <View style={tw`flex-row flex-wrap`}>
                           {item.hashtags.map((tag, index) => (
@@ -236,14 +235,14 @@ const UserDashboard = ({
                                 { backgroundColor: colors.accent.sage + "20" },
                               ]}
                             >
-                              <Text
+                              <AppText
                                 style={[
                                   tw`text-xs`,
                                   { color: colors.accent.sage },
                                 ]}
                               >
                                 #{tag}
-                              </Text>
+                              </AppText>
                             </View>
                           ))}
                         </View>
@@ -251,14 +250,14 @@ const UserDashboard = ({
                       <View
                         style={tw`flex-row items-center justify-between mt-1`}
                       >
-                        <Text
+                        <AppText
                           style={[
                             tw`text-xs flex-1`,
                             { color: colors.text.muted },
                           ]}
                         >
                           {new Date(item.created_at).toLocaleString()}
-                        </Text>
+                        </AppText>
                         <View style={tw`flex-row ml-2`}>
                           <TouchableOpacity
                             style={[
@@ -305,14 +304,14 @@ const UserDashboard = ({
               ]}
             >
               <View style={tw`flex-1`}>
-                <Text
+                <AppText
                   style={[
                     tw`text-2xl font-bold flex-1`,
                     { color: colors.text.primary },
                   ]}
                 >
                   Available Credits
-                </Text>
+                </AppText>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
@@ -332,6 +331,7 @@ const UserDashboard = ({
               fetchUserCredits={() => fetchUserProfile(user.id)}
               setActiveMode={setActiveMode}
               setActiveTab={setActiveTab}
+              activeMode={activeMode}
             />
           </View>
         )}
@@ -345,14 +345,14 @@ const UserDashboard = ({
               ]}
             >
               <View style={tw`flex-1`}>
-                <Text
+                <AppText
                   style={[
                     tw`text-2xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   Transaction History
-                </Text>
+                </AppText>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveTab("generator")}
@@ -369,11 +369,11 @@ const UserDashboard = ({
             {loadingTransactions ? (
               <View style={tw`flex-1 justify-center items-center`}>
                 <ActivityIndicator size="large" color={colors.accent.sage} />
-                <Text
+                <AppText
                   style={[tw`text-base mt-4`, { color: colors.text.secondary }]}
                 >
                   Loading Transactions...
-                </Text>
+                </AppText>
               </View>
             ) : transactions.length === 0 ? (
               <View
@@ -383,14 +383,14 @@ const UserDashboard = ({
                   commonStyles.shadow.light,
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     tw`text-base text-center`,
                     { color: colors.text.secondary },
                   ]}
                 >
                   No transaction history found
-                </Text>
+                </AppText>
               </View>
             ) : (
               transactions.map((transaction, index) => (
@@ -404,25 +404,25 @@ const UserDashboard = ({
                 >
                   <View style={tw`flex-row justify-between items-center`}>
                     <View>
-                      <Text
+                      <AppText
                         style={[
                           tw`text-base font-medium`,
                           { color: colors.text.primary },
                         ]}
                       >
                         {transaction.credits} Credits
-                      </Text>
-                      <Text
+                      </AppText>
+                      <AppText
                         style={[
                           tw`text-base`,
                           { color: colors.text.secondary },
                         ]}
                       >
                         ₹{transaction.amount}
-                      </Text>
+                      </AppText>
                     </View>
                     <View>
-                      <Text
+                      <AppText
                         style={[
                           tw`text-base font-medium`,
                           {
@@ -430,17 +430,17 @@ const UserDashboard = ({
                               transaction.status === "success"
                                 ? colors.status.success
                                 : transaction.status === "pending"
-                                ? colors.status.warning
-                                : colors.status.error,
+                                  ? colors.status.warning
+                                  : colors.status.error,
                           },
                         ]}
                       >
                         {transaction.status.charAt(0).toUpperCase() +
                           transaction.status.slice(1)}
-                      </Text>
-                      <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
+                      </AppText>
+                      <AppText style={[tw`text-sm`, { color: colors.text.muted }]}>
                         {new Date(transaction.created_at).toLocaleDateString()}
-                      </Text>
+                      </AppText>
                     </View>
                   </View>
                 </View>

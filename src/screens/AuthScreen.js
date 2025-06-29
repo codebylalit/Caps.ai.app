@@ -14,6 +14,7 @@ import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import { colors, commonStyles } from "../theme/colors";
+import AppText from '../components/AppText';
 
 // Add ThemedNotification component
 const ThemedNotification = ({ type, message, onClose }) => {
@@ -76,9 +77,9 @@ const ThemedNotification = ({ type, message, onClose }) => {
         }}
       >
         <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
-        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+        <AppText style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
           {message}
-        </Text>
+        </AppText>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
             <FontAwesome name="times" size={16} color={colors.text.light} />
@@ -249,7 +250,7 @@ const AuthScreen = ({ onClose }) => {
 
   const renderEmailPasswordAuth = () => (
     <View>
-      <Text
+      <AppText
         style={[
           {
             color: colors.text.secondary,
@@ -260,7 +261,7 @@ const AuthScreen = ({ onClose }) => {
         ]}
       >
         Email
-      </Text>
+      </AppText>
       <View
         style={[
           {
@@ -291,7 +292,7 @@ const AuthScreen = ({ onClose }) => {
         />
       </View>
 
-      <Text
+      <AppText
         style={[
           {
             color: colors.text.secondary,
@@ -302,7 +303,7 @@ const AuthScreen = ({ onClose }) => {
         ]}
       >
         Password
-      </Text>
+      </AppText>
       <View
         style={[
           {
@@ -347,18 +348,18 @@ const AuthScreen = ({ onClose }) => {
         onPress={handleEmailAuth}
         disabled={loading}
       >
-        <Text
+        <AppText
           style={{ color: colors.text.light, fontWeight: "700", fontSize: 18 }}
         >
           {loading ? "Processing..." : isSignUp ? "Sign Up" : "Log In"}
-        </Text>
+        </AppText>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => setIsSignUp(!isSignUp)}
         style={{ padding: 16 }}
       >
-        <Text
+        <AppText
           style={{
             color: colors.accent.orange,
             textAlign: "center",
@@ -369,7 +370,7 @@ const AuthScreen = ({ onClose }) => {
           {isSignUp
             ? "Already have an account? Log In"
             : "Don't have an account? Sign Up"}
-        </Text>
+        </AppText>
       </TouchableOpacity>
     </View>
   );
@@ -378,13 +379,13 @@ const AuthScreen = ({ onClose }) => {
     <View>
       {!showVerification ? (
         <>
-          <Text
+          <AppText
             style={[
               { color: colors.text.secondary, fontSize: 16, marginBottom: 8 },
             ]}
           >
             Email Address
-          </Text>
+          </AppText>
           <View
             style={[
               {
@@ -423,7 +424,7 @@ const AuthScreen = ({ onClose }) => {
             onPress={handleSendCode}
             disabled={otpLoading}
           >
-            <Text
+            <AppText
               style={{
                 color: colors.text.light,
                 fontWeight: "700",
@@ -431,18 +432,18 @@ const AuthScreen = ({ onClose }) => {
               }}
             >
               {otpLoading ? "Sending Code..." : "Send Verification Code"}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </>
       ) : (
         <>
-          <Text
+          <AppText
             style={[
               { color: colors.text.secondary, fontSize: 16, marginBottom: 8 },
             ]}
           >
             Enter verification code sent to {email}
-          </Text>
+          </AppText>
           <View
             style={[
               {
@@ -492,7 +493,7 @@ const AuthScreen = ({ onClose }) => {
             onPress={handleVerifyCode}
             disabled={otpLoading}
           >
-            <Text
+            <AppText
               style={{
                 color: colors.text.light,
                 fontWeight: "700",
@@ -500,7 +501,7 @@ const AuthScreen = ({ onClose }) => {
               }}
             >
               {otpLoading ? "Verifying..." : "Verify Code"}
-            </Text>
+            </AppText>
           </TouchableOpacity>
 
           <View
@@ -517,7 +518,7 @@ const AuthScreen = ({ onClose }) => {
                 setVerificationCode("");
               }}
             >
-              <Text
+              <AppText
                 style={{
                   color: colors.accent.orange,
                   textAlign: "center",
@@ -526,7 +527,7 @@ const AuthScreen = ({ onClose }) => {
                 }}
               >
                 Change Email
-              </Text>
+              </AppText>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -534,7 +535,7 @@ const AuthScreen = ({ onClose }) => {
               onPress={handleSendCode}
               disabled={resendTimer > 0 || otpLoading}
             >
-              <Text
+              <AppText
                 style={{
                   color:
                     resendTimer > 0 ? colors.text.muted : colors.accent.orange,
@@ -544,7 +545,7 @@ const AuthScreen = ({ onClose }) => {
                 }}
               >
                 {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
         </>
@@ -587,7 +588,7 @@ const AuthScreen = ({ onClose }) => {
               marginBottom: 40,
             }}
           >
-            <Text
+            <AppText
               style={{
                 fontSize: 36,
                 fontWeight: "800",
@@ -600,7 +601,7 @@ const AuthScreen = ({ onClose }) => {
                 : isSignUp
                 ? "Sign Up"
                 : "Sign In"}
-            </Text>
+            </AppText>
             <TouchableOpacity onPress={handleClose}>
               <View
                 style={{
@@ -650,7 +651,7 @@ const AuthScreen = ({ onClose }) => {
                 }}
                 onPress={() => setAuthMethod("email")}
               >
-                <Text
+                <AppText
                   style={{
                     fontWeight: "700",
                     color:
@@ -660,7 +661,7 @@ const AuthScreen = ({ onClose }) => {
                   }}
                 >
                   Email & Password
-                </Text>
+                </AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
@@ -674,7 +675,7 @@ const AuthScreen = ({ onClose }) => {
                 }}
                 onPress={() => setAuthMethod("otp")}
               >
-                <Text
+                <AppText
                   style={{
                     fontWeight: "700",
                     color:
@@ -684,7 +685,7 @@ const AuthScreen = ({ onClose }) => {
                   }}
                 >
                   Email OTP
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           )}

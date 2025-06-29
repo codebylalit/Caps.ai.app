@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -26,7 +25,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useUsageTracking } from "../hooks/useFreeCredits";
 import { colors, commonStyles } from "../theme/colors";
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
-import { faCoins } from '@fortawesome/free-solid-svg-icons';
+import { faCoins, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import AppText from '../components/AppText';
 
 export const API_CONFIG = {
   BASE_URL:
@@ -62,7 +62,7 @@ const LoadingAnimation = ({ type }) => {
         return "hashtag";
       case "image":
         return "image";
-      case "textbehind":
+      case "meme":
         return "text-width";
       default:
         return "magic";
@@ -77,8 +77,8 @@ const LoadingAnimation = ({ type }) => {
         return "Finding trending hashtags...";
       case "image":
         return "Analyzing image...";
-      case "textbehind":
-        return "Processing text overlay...";
+      case "meme":
+        return "Processing meme...";
       default:
         return "Generating content...";
     }
@@ -92,8 +92,8 @@ const LoadingAnimation = ({ type }) => {
         return colors.accent.orange;
       case "image":
         return colors.accent.olive;
-      case "textbehind":
-        return colors.accent.purple;
+      case "meme":
+        return colors.accent.yellow;
       default:
         return colors.accent.sage;
     }
@@ -126,17 +126,17 @@ const LoadingAnimation = ({ type }) => {
           <FontAwesome name={getIcon()} size={24} color={themeColor} />
         </View>
 
-        <Text
+        <AppText
           style={[tw`text-base font-medium`, { color: colors.text.primary }]}
         >
           {getText()}
-        </Text>
+        </AppText>
       </Animated.View>
     </View>
   );
 };
 
-const GeneratorScreen = ({ activeMode, setActiveMode }) => {
+const GeneratorScreen = ({ activeMode, setActiveMode, onNavigate }) => {
   const { user, userProfile, supabase, fetchUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState("generator");
   const [showAuth, setShowAuth] = useState(false);
@@ -201,6 +201,9 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
   };
 
   const deductCredit = async () => {
+    if (userCredits <= 0) {
+      return false;
+    }
     if (!user || !userProfile) return false;
 
     try {
@@ -289,17 +292,12 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
   };
 
   const handleBack = () => {
-    animateTransition(() => {
-      if (activeTab !== "generator") {
-        setActiveTab("generator");
-      } else {
-        setActiveMode(null);
-      }
-    });
+    setActiveMode(null);
+    onNavigate('home');
   };
 
   const handleTabChange = (tab) => {
-    animateTransition(() => setActiveTab(tab));
+    setActiveTab(tab);
   };
 
   const getScreenTitle = () => {
@@ -308,10 +306,10 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
         return activeMode === "mood"
           ? "Smart Captions"
           : activeMode === "niche"
-          ? "Hashtag Pro"
-          : activeMode === "image"
-          ? "Image Captions"
-          : "Generator";
+            ? "Hashtag Pro"
+            : activeMode === "image"
+              ? "Image Captions"
+              : "Generator";
       case "history":
         return "Generation History";
       case "credits":
@@ -326,13 +324,13 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
   const getThemeColor = () => {
     switch (activeMode) {
       case "mood":
-        return colors.accent.sage;
+        return colors.accent.beige;
       case "niche":
         return colors.accent.orange;
       case "image":
-        return colors.accent.olive;
-      case "textbehind":
-        return colors.accent.purple;
+        return colors.accent.sage;
+      case "meme":
+        return colors.accent.yellowDark;
       default:
         return colors.accent.sage;
     }
@@ -384,39 +382,37 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                             color="white"
                           />
                         </TouchableOpacity>
-                        <Text
+                        <AppText
                           style={[
                             tw`text-lg font-semibold flex-1 ml-3`,
                             { color: colors.text.primary },
                           ]}
                         >
                           {getScreenTitle()}
-                        </Text>
+                        </AppText>
                         {user ? (
-                          userCredits > 0 && (
-                            <TouchableOpacity
-                              onPress={() => handleTabChange("credits")}
+                          <TouchableOpacity
+                            onPress={() => handleTabChange("credits")}
+                            style={[
+                              tw`flex-row items-center px-3 py-1.5 rounded-full`,
+                              { backgroundColor: themeColor },
+                            ]}
+                          >
+                            <FontAwesomeIcon
+                              icon={faCoins}
+                              size={12}
+                              color={colors.text.light}
+                              style={tw`mr-1.5`}
+                            />
+                            <AppText
                               style={[
-                                tw`flex-row items-center px-3 py-1.5 rounded-full`,
-                                { backgroundColor: themeColor },
+                                tw`text-sm font-semibold`,
+                                { color: colors.text.light },
                               ]}
                             >
-                              <FontAwesomeIcon
-                                icon={faCoins}
-                                size={12}
-                                color={colors.text.light}
-                                style={tw`mr-1.5`}
-                              />
-                              <Text
-                                style={[
-                                  tw`text-sm font-semibold`,
-                                  { color: colors.text.light },
-                                ]}
-                              >
-                                {userCredits}
-                              </Text>
-                            </TouchableOpacity>
-                          )
+                              {userCredits}
+                            </AppText>
+                          </TouchableOpacity>
                         ) : (
                           <TouchableOpacity
                             onPress={() => handleTabChange("credits")}
@@ -431,14 +427,14 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                               color={colors.text.light}
                               style={tw`mr-1.5`}
                             />
-                            <Text
+                            <AppText
                               style={[
                                 tw`text-sm font-semibold`,
                                 { color: colors.text.light },
                               ]}
                             >
                               {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
-                            </Text>
+                            </AppText>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -460,6 +456,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                           incrementAnonymousUsage={incrementAnonymousUsage}
                           themeColor={themeColor}
                           setShowAuth={setShowAuth}
+                          setActiveTab={setActiveTab}
                         />
                       </ScrollView>
                     </>
@@ -469,18 +466,18 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
               {(activeTab === "history" ||
                 activeTab === "credits" ||
                 activeTab === "transactions") && (
-                <UserDashboard
-                  activeTab={activeTab}
-                  user={user}
-                  history={history}
-                  setShowAuth={setShowAuth}
-                  setActiveMode={setActiveMode}
-                  deleteHistoryItem={deleteHistoryItem}
-                  supabase={supabase}
-                  setActiveTab={setActiveTab}
-                  activeMode={activeMode}
-                />
-              )}
+                  <UserDashboard
+                    activeTab={activeTab}
+                    user={user}
+                    history={history}
+                    setShowAuth={setShowAuth}
+                    setActiveMode={setActiveMode}
+                    deleteHistoryItem={deleteHistoryItem}
+                    supabase={supabase}
+                    setActiveTab={setActiveTab}
+                    activeMode={activeMode}
+                  />
+                )}
             </View>
           </Animated.View>
 
@@ -528,7 +525,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                       : colors.text.secondary
                   }
                 />
-                <Text
+                <AppText
                   style={[
                     tw`text-xs mt-1`,
                     {
@@ -541,7 +538,7 @@ const GeneratorScreen = ({ activeMode, setActiveMode }) => {
                   ]}
                 >
                   {tab.label}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             ))}
           </View>

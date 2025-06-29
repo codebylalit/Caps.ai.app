@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -15,6 +14,7 @@ import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import { colors, commonStyles } from "../theme/colors";
+import AppText from '../components/AppText';
 
 const LoadingAnimation = () => {
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -56,14 +56,14 @@ const LoadingAnimation = () => {
           <FontAwesome name="user" size={24} color={colors.accent.sage} />
         </View>
 
-        <Text
+        <AppText
           style={[
             tw`text-base font-medium`,
             { color: colors.text.primary },
           ]}
         >
           Loading profile...
-        </Text>
+        </AppText>
       </Animated.View>
     </View>
   );
@@ -274,8 +274,8 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
           return colors.accent.orange;
         case "image":
           return colors.accent.olive;
-        case "textbehind":
-          return colors.accent.purple;
+        case "meme":
+          return colors.accent.yellow;
         default:
           return colors.accent.sage;
       }
@@ -302,7 +302,7 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
           backgroundColor: colors.background.main,
         }}
       >
-        <Text
+        <AppText
           style={{
             fontSize: 20,
             color: colors.text.primary,
@@ -312,7 +312,7 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
           }}
         >
           Sign in to view your profile
-        </Text>
+        </AppText>
         <TouchableOpacity
           style={{
             backgroundColor: colors.accent.orange,
@@ -324,7 +324,7 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
           }}
           onPress={() => setShowAuth(true)}
         >
-          <Text
+          <AppText
             style={{
               color: colors.text.light,
               fontWeight: "700",
@@ -332,7 +332,7 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
             }}
           >
             Sign In
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
     );
@@ -373,14 +373,14 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
                   color="white"
                 />
               </View>
-              <Text
+              <AppText
                 style={[
                   tw`text-lg font-semibold ml-3 mt-[-4]`,
                   { color: colors.text.primary },
                 ]}
               >
                 Profile
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
         </View>
@@ -402,11 +402,11 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
                   style={tw`w-20 h-20 rounded-full`}
                 />
               ) : (
-                <Text
+                <AppText
                   style={[tw`text-4xl font-bold`, { color: colors.text.light }]}
                 >
                   {getInitial(localUser?.name || displayName)}
-                </Text>
+                </AppText>
               )}
             </View>
 
@@ -437,14 +437,14 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
                     ]}
                     onPress={handleUpdateProfile}
                   >
-                    <Text
+                    <AppText
                       style={[
                         tw`font-semibold text-sm`,
                         { color: colors.text.light },
                       ]}
                     >
                       Save Changes
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -457,30 +457,30 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
                       setIsEditing(false);
                     }}
                   >
-                    <Text
+                    <AppText
                       style={[
                         tw`font-semibold text-sm`,
                         { color: colors.text.secondary },
                       ]}
                     >
                       Cancel
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <>
-                <Text
+                <AppText
                   style={[
                     tw`text-2xl font-bold mb-1`,
                     { color: colors.text.primary },
                   ]}
                 >
                   {localUser?.name || "User"}
-                </Text>
-                <Text style={[tw`text-sm`, { color: colors.text.secondary }]}>
+                </AppText>
+                <AppText style={[tw`text-sm`, { color: colors.text.secondary }]}>
                   {localUser?.email || localUser?.phone || "@user"}
-                </Text>
+                </AppText>
               </>
             )}
           </View>
@@ -494,40 +494,40 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
             ]}
           >
             <View style={tw`items-center flex-1`}>
-              <Text
+              <AppText
                 style={[
                   tw`text-2xl font-bold mb-1`,
                   { color: colors.text.primary },
                 ]}
               >
                 {generations}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   tw`text-xs font-medium`,
                   { color: colors.text.secondary },
                 ]}
               >
                 Generations
-              </Text>
+              </AppText>
             </View>
             <View style={tw`items-center flex-1`}>
-              <Text
+              <AppText
                 style={[
                   tw`text-2xl font-bold mb-1`,
                   { color: colors.text.primary },
                 ]}
               >
                 {credits}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   tw`text-xs font-medium`,
                   { color: colors.text.secondary },
                 ]}
               >
                 Credits
-              </Text>
+              </AppText>
             </View>
           </View>
 
@@ -614,14 +614,14 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
                     color={colors.accent.sage}
                   />
                 </View>
-                <Text
+                <AppText
                   style={[
                     tw`text-sm font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   {item.label}
-                </Text>
+                </AppText>
                 <FontAwesome
                   name="chevron-right"
                   size={12}
@@ -634,9 +634,9 @@ const Profile = ({activeMode, setActiveMode, setShowAuth }) => {
 
           {/* Version Info */}
           <View style={tw`items-center mb-6`}>
-            <Text style={[tw`text-xs`, { color: colors.text.muted }]}>
+            <AppText style={[tw`text-xs`, { color: colors.text.muted }]}>
               Version 1.0.0
-            </Text>
+            </AppText>
           </View>
         </View>
       </ScrollView>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   Alert,
   ScrollView,
@@ -13,12 +12,18 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Modal,
 } from "react-native";
 import tw from "twrnc";
 import { RAZORPAY_KEY_ID } from '../config/razorpay';
 import RazorpayService from '../services/razorpay';
 import { colors, commonStyles } from '../theme/colors';
 import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faCoins, faPlay } from '@fortawesome/free-solid-svg-icons';
+import { useAuth } from '../hooks/useAuth';
+import DotsLoader from '../components/DotsLoader';
+import AppText from '../components/AppText';
 
 let RazorpayCheckout;
 let razorpayEvents;
@@ -31,31 +36,31 @@ if (Platform.OS === 'android') {
 }
 
 const creditPackages = [
-  { 
-    credits: 100, 
-    price: 9, 
+  {
+    credits: 100,
+    price: 9,
     originalPrice: 19,
-    popular: false, 
-    discount: true, 
-    savings: "₹10", 
+    popular: false,
+    discount: true,
+    savings: "₹10",
     label: "Starter"
   },
   {
-    credits: 500, 
-    price: 39, 
+    credits: 500,
+    price: 39,
     originalPrice: 79,
-    popular: true, 
-    discount: true, 
-    savings: "₹40", 
+    popular: true,
+    discount: true,
+    savings: "₹40",
     label: "Best Value"
   },
-  { 
-    credits: 1200, 
-    price: 79, 
+  {
+    credits: 1200,
+    price: 79,
     originalPrice: 149,
-    popular: false, 
-    discount: true, 
-    savings: "₹70", 
+    popular: false,
+    discount: true,
+    savings: "₹70",
     label: "Pro Pack"
   },
 ];
@@ -126,9 +131,9 @@ const ThemedNotification = ({ type, message, onClose }) => {
         }}
       >
         <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
-        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+        <AppText style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
           {message}
-        </Text>
+        </AppText>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
             <FontAwesome name="times" size={16} color={colors.text.light} />
@@ -205,10 +210,12 @@ const CelebrationEffect = ({ onComplete }) => {
               { translateX: particle.x },
               { translateY: particle.y },
               { scale: particle.scale },
-              { rotate: particle.rotation.interpolate({
-                inputRange: [0, 360],
-                outputRange: ['0deg', '360deg'],
-              })},
+              {
+                rotate: particle.rotation.interpolate({
+                  inputRange: [0, 360],
+                  outputRange: ['0deg', '360deg'],
+                })
+              },
             ],
             opacity: particle.opacity,
           }}
@@ -218,13 +225,14 @@ const CelebrationEffect = ({ onComplete }) => {
   );
 };
 
-const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActiveMode, setActiveTab }) => {
+const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, activeMode, setActiveTab, }) => {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [transactionId, setTransactionId] = useState(null);
   const [processingPlan, setProcessingPlan] = useState(null);
   const [notification, setNotification] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
 
   // Add notification handler
   const showNotification = (type, message, duration = 3000) => {
@@ -265,7 +273,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
     // Setup deep link handling
     let deepLinkSubscription = null;
-    
+
     const setupDeepLinkHandling = async () => {
       if (transactionId) {
         // Modern approach for Linking event listener
@@ -274,7 +282,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
             processDeepLink(url);
           }
         });
-        
+
         // Check if app was opened via deep link
         try {
           const initialUrl = await Linking.getInitialURL();
@@ -292,7 +300,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     // Cleanup function
     return () => {
       backHandler.remove();
-      
+
       // Clean up deep link listener
       if (deepLinkSubscription) {
         deepLinkSubscription.remove();
@@ -316,7 +324,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
   const handlePaymentSuccess = async (data) => {
     try {
       const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = data;
-      
+
       if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
         throw new Error('Invalid payment response');
       }
@@ -325,7 +333,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         payment_id: razorpay_payment_id,
         order_id: razorpay_order_id
       });
-      
+
       await supabase.from("payments")
         .update({
           status: "processing",
@@ -346,7 +354,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         console.log('Payment verified successfully');
         await fetchUserCredits();
         await fetchTransactions();
-        
+
         showNotification('success', 'Payment successful! Your credits have been added to your account.');
         setShowCelebration(true);
       } else {
@@ -355,7 +363,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     } catch (error) {
       console.error('Payment verification error:', error);
       showNotification('error', error.message || "There was an error processing your payment.");
-      
+
       await supabase.from("payments")
         .update({
           status: "failed",
@@ -372,7 +380,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
   const processDeepLink = async (url) => {
     if (!transactionId) return;
-    
+
     try {
       const urlObj = new URL(url);
       const paymentId = urlObj.searchParams.get('razorpay_payment_id');
@@ -406,10 +414,10 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
         }
       } else if (url.includes('payment/failure') || url.includes('payment/cancel')) {
         await supabase.from("payments")
-          .update({ 
-            status: "failed", 
+          .update({
+            status: "failed",
             error_description: url.includes('payment/cancel') ? "Payment cancelled" : "Payment failed",
-            verified: false 
+            verified: false
           })
           .eq("transaction_id", transactionId);
 
@@ -421,12 +429,12 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     } catch (error) {
       console.error('Payment verification error:', error);
       showNotification('error', error.message || "There was an error processing your payment.");
-      
+
       await supabase.from("payments")
-        .update({ 
-          status: "failed", 
-          error_description: error.message || "Verification failed", 
-          verified: false 
+        .update({
+          status: "failed",
+          error_description: error.message || "Verification failed",
+          verified: false
         })
         .eq("transaction_id", transactionId);
     } finally {
@@ -463,13 +471,13 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
   const handlePaymentError = async (error) => {
     console.error("Payment error details:", error);
-    
+
     if (transactionId) {
       await supabase.from("payments")
-        .update({ 
-          status: "failed", 
+        .update({
+          status: "failed",
           error_description: error?.description || error?.message || "Payment failed",
-          verified: false 
+          verified: false
         })
         .eq("transaction_id", transactionId);
     }
@@ -557,7 +565,7 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
       }
 
       console.log('Starting payment with order:', orderData.id);
-      
+
       const paymentData = await RazorpayService.initiatePayment({
         amount: pkg.price * 100,
         orderId: orderData.id,
@@ -579,14 +587,14 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
 
     } catch (error) {
       console.error('Payment error:', error);
-      
+
       // Always update payment status to failed when there's an error
       await supabase
         .from("payments")
-        .update({ 
-          status: "failed", 
-          error_description: error.message || 'Unknown error', 
-          verified: false 
+        .update({
+          status: "failed",
+          error_description: error.message || 'Unknown error',
+          verified: false
         })
         .eq("transaction_id", txnId);
 
@@ -598,12 +606,43 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
     }
   };
 
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.9,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const getThemeColor = () => {
+    if (!activeMode) return colors.accent.sage;
+
+    switch (activeMode) {
+      case "mood":
+        return colors.accent.beige;
+      case "niche":
+        return colors.accent.orange;
+      case "image":
+        return colors.accent.sage;
+      case "meme":
+        return colors.accent.yellowDark;
+      default:
+        return colors.accent.orange;
+    }
+  };
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={tw`flex-1 bg-white`}>
       {showCelebration && (
         <CelebrationEffect onComplete={() => setShowCelebration(false)} />
       )}
-      
+
       {/* Add notification component */}
       {notification && (
         <ThemedNotification
@@ -627,21 +666,21 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
             commonStyles.shadow.light,
           ]}
         >
-          <Text style={[tw`text-3xl font-bold`, { color: colors.accent.sage }]}>
+          <AppText style={[tw`text-3xl font-bold`, { color: getThemeColor() }]}>
             {credits}
-          </Text>
-          <Text style={[tw`text-base mt-1`, { color: colors.text.secondary }]}>
+          </AppText>
+          <AppText style={[tw`text-base mt-1`, { color: colors.text.secondary }]}>
             Credits remaining
-          </Text>
+          </AppText>
         </View>
       </View>
 
       <View style={tw`mb-4`}>
-        <Text
+        <AppText
           style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}
         >
           Purchase Credits
-        </Text>
+        </AppText>
       </View>
 
       {creditPackages.map((pkg, index) => {
@@ -653,40 +692,40 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               tw`mb-4 p-4 rounded-lg`,
               { backgroundColor: colors.background.card },
               commonStyles.shadow.light,
-              pkg.popular && { borderWidth: 2, borderColor: colors.accent.sage }
+              pkg.popular && { borderWidth: 2, borderColor: getThemeColor() }
             ]}
             onPress={() => handlePayment(pkg)}
-            disabled={loading}
+            disabled={processingPlan === pkg.credits.toString()}
           >
             <View style={tw`flex-row justify-between items-center`}>
               <View>
-                <Text
+                <AppText
                   style={[
                     tw`text-xl font-semibold`,
                     { color: colors.text.primary },
                   ]}
                 >
                   {pkg.credits} Credits
-                </Text>
-                <Text style={[tw`text-base`, { color: colors.text.secondary }]}>
+                </AppText>
+                <AppText style={[tw`text-base`, { color: colors.text.secondary }]}>
                   {pkg.label}
-                </Text>
+                </AppText>
               </View>
               <View style={tw`items-end`}>
-                <Text
-                  style={[tw`text-xl font-bold`, { color: colors.accent.sage }]}
+                <AppText
+                  style={[tw`text-xl font-bold`, { color: getThemeColor() }]}
                 >
                   ₹{pkg.price}
-                </Text>
+                </AppText>
                 {pkg.discount && (
-                  <Text
+                  <AppText
                     style={[
                       tw`text-base line-through`,
                       { color: colors.text.muted },
                     ]}
                   >
                     ₹{originalPrice}
-                  </Text>
+                  </AppText>
                 )}
               </View>
             </View>
@@ -695,52 +734,56 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
               <View
                 style={[
                   tw`absolute -top-2 -right-2 px-2 py-1 rounded-full`,
-                  { backgroundColor: colors.accent.sage },
+                  { backgroundColor: getThemeColor() },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     tw`text-sm font-medium`,
                     { color: colors.text.light },
                   ]}
                 >
                   Popular
-                </Text>
+                </AppText>
               </View>
             )}
-            {loading && processingPlan === pkg.credits.toString() && (
-              <View
-                style={[
-                  tw`mt-3 p-2 rounded-lg`,
-                  { backgroundColor: colors.background.light },
-                ]}
-              >
-                <ActivityIndicator color={colors.accent.sage} />
-                <Text
+            {processingPlan === pkg.credits.toString() ? (
+              <ActivityIndicator color={getThemeColor()} size={20} />
+            ) : (
+              processingPlan === pkg.credits.toString() && (
+                <View
                   style={[
-                    tw`text-base text-center mt-1`,
-                    { color: colors.text.secondary },
+                    tw`mt-3 p-2 rounded-lg`,
+                    { backgroundColor: colors.background.light },
                   ]}
                 >
-                  Processing...
-                </Text>
-              </View>
+                  <DotsLoader color={getThemeColor()} size={16} />
+                  <AppText
+                    style={[
+                      tw`text-base text-center mt-1`,
+                      { color: colors.text.secondary },
+                    ]}
+                  >
+                    Processing...
+                  </AppText>
+                </View>
+              )
             )}
           </TouchableOpacity>
         );
       })}
 
       <View style={tw`mb-6 flex-row justify-between items-center`}>
-        <Text
+        <AppText
           style={[tw`text-lg font-semibold`, { color: colors.text.primary }]}
         >
           Transaction History
-        </Text>
+        </AppText>
         {transactions.length > 0 && (
           <TouchableOpacity onPress={() => setActiveTab("transactions")}>
-            <Text style={[tw`text-base`, { color: colors.accent.sage }]}>
-              View All 
-            </Text>
+            <AppText style={[tw`text-base`, { color: getThemeColor() }]}>
+              View All
+            </AppText>
           </TouchableOpacity>
         )}
       </View>
@@ -753,9 +796,9 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
             commonStyles.shadow.light,
           ]}
         >
-          <Text style={[tw`text-base text-center`, { color: colors.text.secondary }]}>
+          <AppText style={[tw`text-base text-center`, { color: colors.text.secondary }]}>
             No transaction history found
-          </Text>
+          </AppText>
         </View>
       ) : (
         transactions.map((transaction, index) => (
@@ -769,20 +812,20 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
           >
             <View style={tw`flex-row justify-between items-center`}>
               <View>
-                <Text
+                <AppText
                   style={[
                     tw`text-base font-medium`,
                     { color: colors.text.primary },
                   ]}
                 >
                   {transaction.credits} Credits
-                </Text>
-                <Text style={[tw`text-base`, { color: colors.text.secondary }]}>
+                </AppText>
+                <AppText style={[tw`text-base`, { color: colors.text.secondary }]}>
                   ₹{transaction.amount}
-                </Text>
+                </AppText>
               </View>
               <View>
-                <Text
+                <AppText
                   style={[
                     tw`text-base font-medium`,
                     {
@@ -790,23 +833,23 @@ const PaymentManager = ({ user, supabase, credits = 0, fetchUserCredits, setActi
                         transaction.status === "success"
                           ? colors.status.success
                           : transaction.status === "processing"
-                          ? colors.status.warning
-                          : transaction.status === "pending"
-                          ? colors.status.warning
-                          : colors.status.error,
+                            ? colors.status.warning
+                            : transaction.status === "pending"
+                              ? colors.status.warning
+                              : colors.status.error,
                     },
                   ]}
                 >
-                  {transaction.status === "processing" 
+                  {transaction.status === "processing"
                     ? "Processing"
                     : transaction.status === "failed"
-                    ? "Failed"
-                    : transaction.status.charAt(0).toUpperCase() +
+                      ? "Failed"
+                      : transaction.status.charAt(0).toUpperCase() +
                       transaction.status.slice(1)}
-                </Text>
-                <Text style={[tw`text-sm`, { color: colors.text.muted }]}>
+                </AppText>
+                <AppText style={[tw`text-sm`, { color: colors.text.muted }]}>
                   {new Date(transaction.created_at).toLocaleDateString()}
-                </Text>
+                </AppText>
               </View>
             </View>
           </View>

@@ -21,8 +21,12 @@ import tw from "twrnc";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { useAuth } from "../hooks/useAuth";
 import { colors, commonStyles } from "../theme/colors";
+import DotsLoader from '../components/DotsLoader';
+import AppText from '../components/AppText';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faCoins } from '@fortawesome/free-solid-svg-icons';
 
-const ThemedAlert = ({ visible, title, message, buttons, onClose }) => {
+const ThemedAlert = ({ visible, title, message, buttons, onClose, children, themeColor }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
 
@@ -67,22 +71,23 @@ const ThemedAlert = ({ visible, title, message, buttons, onClose }) => {
                 commonStyles.shadow.light,
               ]}
             >
-              <Text
+              <AppText
                 style={[
                   tw`text-xl font-bold mb-1.5 text-center`,
                   { color: colors.text.primary },
                 ]}
               >
                 {title}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   tw`text-sm mb-5 text-center`,
                   { color: colors.text.secondary },
                 ]}
               >
                 {message}
-              </Text>
+              </AppText>
+              {children}
               <View style={tw`flex-row gap-2`}>
                 {buttons.map((button, index) => (
                   <TouchableOpacity
@@ -94,15 +99,15 @@ const ThemedAlert = ({ visible, title, message, buttons, onClose }) => {
                     style={[
                       tw`flex-1 py-2.5 rounded-lg items-center`,
                       {
-                        backgroundColor: button.style === "default" 
-                          ? colors.accent.sage 
+                        backgroundColor: button.style === "default"
+                          ? themeColor
                           : 'transparent',
                         borderWidth: button.style === "cancel" ? 1 : 0,
-                        borderColor: colors.accent.sage + "30",
+                        borderColor: themeColor + "30",
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         tw`text-sm font-medium`,
                         {
@@ -113,7 +118,7 @@ const ThemedAlert = ({ visible, title, message, buttons, onClose }) => {
                       ]}
                     >
                       {button.text}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -138,6 +143,7 @@ const GeneratorContent = ({
   API_CONFIG,
   themeColor,
   setShowAuth,
+  setActiveTab,
 }) => {
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
@@ -150,6 +156,8 @@ const GeneratorContent = ({
   const [showAdditionalContext, setShowAdditionalContext] = useState(false);
   const [animation] = useState(new Animated.Value(0));
   const [alertConfig, setAlertConfig] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [showReportConfirmation, setShowReportConfirmation] = useState(false);
 
   const moods = [
     "Happy",
@@ -282,18 +290,9 @@ const GeneratorContent = ({
     }
   };
 
-  const copyToClipboard = () => {
-    const text =
-      activeMode === "niche"
-        ? hashtags.join(" ")
-        : `${caption}\n\n${hashtags.join(", ")}`;
+  const copyToClipboard = (text) => {
     Clipboard.setString(text);
-    Alert.alert(
-      "Copied!",
-      activeMode === "niche"
-        ? "Hashtags copied to clipboard"
-        : "Caption and hashtags copied to clipboard"
-    );
+    Alert.alert("Copied!", "Content copied to clipboard.");
   };
 
   const analyzeImage = async (imageUri) => {
@@ -344,7 +343,7 @@ const GeneratorContent = ({
     }
   };
 
-  const generateContent = async () => {
+  const handleGenerate = async () => {
     if (!user && anonymousUsageCount >= MAX_ANONYMOUS_GENERATIONS) {
       setAlertConfig({
         visible: true,
@@ -371,7 +370,24 @@ const GeneratorContent = ({
     if (user && userCredits <= 0) {
       setAlertConfig({
         visible: true,
-        title: "💎 Out of Credits",
+        title: (
+          <View style={tw`flex-row items-center justify-center`}>
+            <FontAwesomeIcon
+              icon={faCoins}
+              size={20}
+              color={themeColor}
+              style={tw`mr-2`}
+            />
+            <AppText
+              style={[
+                tw`text-xl font-bold`,
+                { color: colors.text.primary },
+              ]}
+            >
+              Out of Credits
+            </AppText>
+          </View>
+        ),
         message: "You've used all your credits. Purchase more to continue creating amazing content!",
         buttons: [
           {
@@ -381,7 +397,7 @@ const GeneratorContent = ({
           {
             text: "Buy Credits",
             style: "default",
-            onPress: () => setActiveMode("dashboard:credits"),
+            onPress: () => setActiveTab("credits"),
           },
         ],
       });
@@ -394,13 +410,15 @@ const GeneratorContent = ({
         setError("Please upload an image first");
         return;
       }
-    } else if (!customInput.trim() && activeMode === "textbehind") {
+    } else if (!customInput.trim() && activeMode === "meme") {
       setError("Please provide some context for better results");
       return;
     }
 
     setError("");
     setLoading(true);
+    setCaption("");
+    setHashtags([]);
 
     try {
       if (user) {
@@ -431,9 +449,8 @@ const GeneratorContent = ({
               - Authentic storytelling and vulnerability
               - Relatable experiences and feelings
               - Positive and uplifting tone
-              Additional context: ${
-                customInput || "Share a moment that captures this mood"
-              }`;
+              Additional context: ${customInput || "Share a moment that captures this mood"
+                }`;
 
             case "image":
               return `${basePrompt}
@@ -447,9 +464,8 @@ const GeneratorContent = ({
               4. Maintains a natural, conversational tone
               5. Includes a subtle call to action
 
-              Additional context: ${
-                customInput || "Share what makes this image special"
-              }
+              Additional context: ${customInput || "Share what makes this image special"
+                }
 
               Guidelines:
               - Keep the tone authentic and personal
@@ -637,6 +653,54 @@ const GeneratorContent = ({
     }
   };
 
+  const reportContent = async () => {
+    if (!user) {
+      setAlertConfig({
+        title: "Sign In Required",
+        message: "You must be signed in to report content.",
+        buttons: [{ text: "OK", style: "default", onPress: () => setShowAuth(true) }],
+      });
+      return;
+    }
+
+    setShowReportConfirmation(false); // Close the input modal
+    setLoading(true);
+
+    try {
+      const { error: insertError } = await supabase.from("content_reports").insert({
+        reporter_id: user.id,
+        generated_caption: caption,
+        generated_hashtags: hashtags,
+        report_reason: reportReason || "No specific reason provided.",
+        report_time: new Date().toISOString(),
+        mode: activeMode,
+        category: selectedCategory,
+        custom_input: customInput || null,
+      });
+
+      if (insertError) {
+        console.error("Detailed report insert error:", insertError);
+        throw insertError;
+      }
+
+      setAlertConfig({
+        title: "Report Submitted",
+        message: "Thank you for your report. We will review the content.",
+        buttons: [{ text: "OK", style: "default" }],
+      });
+      setReportReason(""); // Clear the reason after submission
+    } catch (error) {
+      console.error("Error reporting content:", error);
+      setAlertConfig({
+        title: "Report Failed",
+        message: "Failed to submit report. Please try again.",
+        buttons: [{ text: "OK", style: "default" }],
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderLengthSelector = () => (
     <View style={tw`p-2`}>
       {/* <View style={tw`flex-row items-center mb-4`}>
@@ -662,7 +726,7 @@ const GeneratorContent = ({
             ]}
             onPress={() => setCaptionLength(key)}
           >
-            <Text
+            <AppText
               style={[
                 tw`text-base font-semibold`,
                 {
@@ -674,8 +738,8 @@ const GeneratorContent = ({
               ]}
             >
               {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 tw`text-sm mt-1`,
                 {
@@ -687,7 +751,7 @@ const GeneratorContent = ({
               ]}
             >
               {config.wordCount} words
-            </Text>
+            </AppText>
           </TouchableOpacity>
         ))}
       </View>
@@ -702,22 +766,22 @@ const GeneratorContent = ({
             activeMode === "mood"
               ? "smile-o"
               : activeMode === "niche"
-              ? "tags"
-              : "list"
+                ? "tags"
+                : "list"
           }
           size={20}
           color={themeColor}
           style={tw`mr-2`}
         />
-        <Text
+        <AppText
           style={[tw`text-xl font-semibold`, { color: colors.text.primary }]}
         >
           {activeMode === "mood"
             ? "Mood"
             : activeMode === "niche"
-            ? "Niche"
-            : "Category"}
-        </Text>
+              ? "Niche"
+              : "Category"}
+        </AppText>
       </View>
       <ScrollView
         horizontal
@@ -745,7 +809,7 @@ const GeneratorContent = ({
             ]}
             onPress={() => setSelectedCategory(category.toLowerCase())}
           >
-            <Text
+            <AppText
               style={[
                 tw`text-sm font-medium`,
                 {
@@ -757,7 +821,7 @@ const GeneratorContent = ({
               ]}
             >
               {category}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -779,15 +843,6 @@ const GeneratorContent = ({
         barStyle="dark-content"
         backgroundColor={colors.background.main}
       />
-      {alertConfig && (
-        <ThemedAlert
-          visible={alertConfig.visible}
-          title={alertConfig.title}
-          message={alertConfig.message}
-          buttons={alertConfig.buttons}
-          onClose={() => setAlertConfig(null)}
-        />
-      )}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[tw`px-4 pb-32`, { gap: 24 }]}
@@ -805,14 +860,14 @@ const GeneratorContent = ({
                 color={themeColor}
                 style={tw`mr-2`}
               />
-              <Text
+              <AppText
                 style={[
                   tw`text-xl font-semibold`,
                   { color: colors.text.primary },
                 ]}
               >
                 Upload Image
-              </Text>
+              </AppText>
             </View>
             <TouchableOpacity
               style={[
@@ -840,16 +895,16 @@ const GeneratorContent = ({
                     color={themeColor}
                     style={tw`mb-3`}
                   />
-                  <Text
+                  <AppText
                     style={[tw`text-base font-medium`, { color: themeColor }]}
                   >
                     Tap to upload image
-                  </Text>
-                  <Text
+                  </AppText>
+                  <AppText
                     style={[tw`text-sm mt-1`, { color: colors.text.muted }]}
                   >
                     JPG, PNG up to 10MB
-                  </Text>
+                  </AppText>
                 </View>
               )}
             </TouchableOpacity>
@@ -876,7 +931,7 @@ const GeneratorContent = ({
                 color={themeColor}
                 style={tw`mr-3`}
               />
-              <Text
+              <AppText
                 style={[
                   tw`text-base font-medium`,
                   { color: colors.text.primary },
@@ -885,7 +940,7 @@ const GeneratorContent = ({
                 {showAdditionalContext
                   ? "Hide Additional Context"
                   : "Add Additional Context"}
-              </Text>
+              </AppText>
             </View>
             <FontAwesome
               name={showAdditionalContext ? "chevron-up" : "chevron-down"}
@@ -935,11 +990,11 @@ const GeneratorContent = ({
               ...commonStyles.shadow.medium,
             },
           ]}
-          onPress={generateContent}
+          onPress={handleGenerate}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.text.light} />
+            <ActivityIndicator color={colors.text.light} size={20} />
           ) : (
             <View style={tw`flex-row items-center`}>
               <FontAwesome
@@ -948,103 +1003,94 @@ const GeneratorContent = ({
                 color={colors.text.light}
                 style={tw`mr-2`}
               />
-              <Text
+              <AppText
                 style={[
                   tw`text-lg font-semibold`,
                   { color: colors.text.light },
                 ]}
               >
                 Generate Content
-              </Text>
+              </AppText>
             </View>
           )}
         </TouchableOpacity>
 
         {error && (
           <View style={tw`bg-red-50 p-4 rounded-xl`}>
-            <Text
+            <AppText
               style={[
                 tw`text-red-500 text-center`,
                 { color: colors.status.error },
               ]}
             >
               {error}
-            </Text>
+            </AppText>
           </View>
         )}
 
         {hashtags.length > 0 && (
           <View style={tw`mt-4 mb-8`}>
-            <View style={tw`flex-row justify-between items-center mb-4`}>
-              <View style={tw`flex-row items-center`}>
-                <FontAwesome
-                  name={activeMode === "niche" ? "hashtag" : "file-text-o"}
-                  size={20}
-                  color={themeColor}
-                  style={tw`mr-2`}
-                />
-                <Text
-                  style={[
-                    tw`text-xl font-semibold`,
-                    { color: colors.text.primary },
-                  ]}
-                >
-                  {activeMode === "niche"
-                    ? "Generated Hashtags"
-                    : "Generated Content"}
-                </Text>
-              </View>
-              <TouchableOpacity
+            <View style={tw`flex-row items-center mb-4`}>
+              <FontAwesome
+                name="hashtag"
+                size={20}
+                color={themeColor}
+                style={tw`mr-2`}
+              />
+              <AppText
                 style={[
-                  tw`py-2.5 px-4 rounded-lg flex-row items-center`,
-                  { backgroundColor: themeColor },
-                  commonStyles.shadow.light,
+                  tw`text-xl font-semibold`,
+                  { color: colors.text.primary },
                 ]}
-                onPress={copyToClipboard}
               >
-                <FontAwesome
-                  name="copy"
-                  size={16}
-                  color={colors.text.light}
-                  style={tw`mr-2`}
-                />
-                <Text
-                  style={[
-                    tw`text-sm font-medium`,
-                    { color: colors.text.light },
-                  ]}
-                >
-                  Copy All
-                </Text>
-              </TouchableOpacity>
+                Hashtags
+              </AppText>
             </View>
+            <View style={tw`flex-row flex-wrap`}>
+              {hashtags.map((tag, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    tw`px-3 py-1.5 rounded-full mr-2 mb-2`,
+                    { backgroundColor: themeColor + "20" },
+                  ]}
+                  onPress={() => copyToClipboard(tag)}
+                >
+                  <AppText
+                    style={[
+                      tw`text-sm font-medium`,
+                      { color: themeColor },
+                    ]}
+                  >
+                    #{tag}
+                  </AppText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
-            {activeMode !== "niche" && caption && (
-              <View
+        {caption && (
+          <View style={tw`mb-8`}>
+            <View style={tw`flex-row items-center mb-4`}>
+              <FontAwesome
+                name="pencil"
+                size={20}
+                color={themeColor}
+                style={tw`mr-2`}
+              />
+              <AppText
                 style={[
-                  tw`p-5 rounded-xl mb-4`,
-                  {
-                    backgroundColor: colors.background.card,
-                    borderWidth: 1,
-                    borderColor: themeColor + "30",
-                  },
-                  commonStyles.shadow.light,
+                  tw`text-xl font-semibold`,
+                  { color: colors.text.primary },
                 ]}
               >
-                <Text
-                  style={[
-                    tw`text-base leading-6`,
-                    { color: colors.text.primary },
-                  ]}
-                >
-                  {caption}
-                </Text>
-              </View>
-            )}
-
+                Caption
+              </AppText>
+            </View>
             <View
               style={[
-                tw`p-5 rounded-xl`,
+                tw`p-4 rounded-xl`,
                 {
                   backgroundColor: colors.background.card,
                   borderWidth: 1,
@@ -1053,20 +1099,147 @@ const GeneratorContent = ({
                 commonStyles.shadow.light,
               ]}
             >
-              <Text
+              <AppText
                 style={[
-                  tw`text-base leading-6`,
-                  { color: colors.text.primary },
+                  tw`text-base`,
+                  { color: colors.text.primary, lineHeight: 24 },
                 ]}
               >
-                {activeMode === "niche"
-                  ? hashtags.join(" ")
-                  : hashtags.join(", ")}
-              </Text>
+                {caption}
+              </AppText>
+              <TouchableOpacity
+                style={tw`mt-4 items-center`}
+                onPress={() => copyToClipboard(caption)}
+              >
+                <FontAwesome
+                  name="copy"
+                  size={20}
+                  color={colors.text.muted}
+                />
+                <AppText
+                  style={[
+                    tw`text-sm mt-1`,
+                    { color: colors.text.muted, fontWeight: "500" },
+                  ]}
+                >
+                  Copy Caption
+                </AppText>
+              </TouchableOpacity>
             </View>
           </View>
         )}
+
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showReportConfirmation}
+          onRequestClose={() => setShowReportConfirmation(false)}
+        >
+          <View
+            style={tw`flex-1 justify-center items-center bg-black/50 px-4`}
+          >
+            <View
+              style={[
+                tw`w-full max-w-sm p-6 rounded-lg`,
+                { backgroundColor: colors.background.card },
+                commonStyles.shadow.medium,
+              ]}
+            >
+              <AppText
+                style={[
+                  tw`text-lg font-semibold mb-4 text-center`,
+                  { color: colors.text.primary },
+                ]}
+              >
+                Report Content
+              </AppText>
+              <AppText
+                style={[
+                  tw`text-sm mb-4 text-center`,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                Please describe why you are reporting this content:
+              </AppText>
+              <TextInput
+                style={[
+                  tw`border p-3 rounded-lg mb-4`,
+                  { borderColor: colors.border.primary, color: colors.text.primary },
+                ]}
+                placeholder="Enter reason here..."
+                placeholderTextColor={colors.text.muted}
+                multiline
+                numberOfLines={4}
+                value={reportReason}
+                onChangeText={setReportReason}
+              />
+              <View style={tw`flex-row justify-between`}>
+                <TouchableOpacity
+                  style={[
+                    tw`flex-1 py-3 rounded-lg mr-2`,
+                    { backgroundColor: colors.accent.sage },
+                  ]}
+                  onPress={reportContent}
+                >
+                  <AppText
+                    style={[
+                      tw`text-center font-semibold`,
+                      { color: colors.text.light },
+                    ]}
+                  >
+                    Submit Report
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    tw`flex-1 py-3 rounded-lg`,
+                    { backgroundColor: colors.background.main },
+                  ]}
+                  onPress={() => setShowReportConfirmation(false)}
+                >
+                  <AppText
+                    style={[
+                      tw`text-center font-semibold`,
+                      { color: colors.text.primary },
+                    ]}
+                  >
+                    Cancel
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
+
+      {/* Themed Alert */}
+      {alertConfig && (
+        <ThemedAlert
+          visible={alertConfig.visible}
+          title={
+            <View style={tw`flex-row items-center justify-center`}>
+              <FontAwesomeIcon
+                icon={faCoins}
+                size={20}
+                color={themeColor}
+                style={tw`mr-2`}
+              />
+              <AppText
+                style={[
+                  tw`text-xl font-bold`,
+                  { color: colors.text.primary },
+                ]}
+              >
+                Out of Credits
+              </AppText>
+            </View>
+          }
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={() => setAlertConfig(null)}
+          themeColor={themeColor}
+        />
+      )}
     </SafeAreaView>
   );
 };

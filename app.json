@@ -2,10 +2,11 @@
   "expo": {
     "name": "Hashly",
     "slug": "capsai",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/Hashly.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/HashlyT.png",
@@ -20,6 +21,7 @@
       }
     },
     "android": {
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF5E1"
@@ -55,6 +57,7 @@
       }
     },
     "owner": "heylalit",
-    "scheme": "caps"
+    "scheme": "caps",
+    "plugins": []
   }
 }

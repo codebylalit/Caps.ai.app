@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -13,9 +12,9 @@ import {
   Image,
   Alert,
   Platform,
-  KeyboardAvoidingView,
   BackHandler,
   Easing,
+  ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import tw from "twrnc";
@@ -30,6 +29,8 @@ import { colors, commonStyles } from "../theme/colors";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faCoins } from "@fortawesome/free-solid-svg-icons";
 import ConfettiCannon from 'react-native-confetti-cannon';
+import DotsLoader from '../components/DotsLoader';
+import AppText from '../components/AppText';
 
 // Add new themed components
 const ThemedNotification = ({ type, message, onClose }) => {
@@ -92,9 +93,9 @@ const ThemedNotification = ({ type, message, onClose }) => {
         }}
       >
         <FontAwesome name={style.icon} size={20} color={colors.text.light} style={{ marginRight: 10 }} />
-        <Text style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
+        <AppText style={{ color: colors.text.light, flex: 1, fontSize: 16, fontWeight: '500' }}>
           {message}
-        </Text>
+        </AppText>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={{ padding: 5 }}>
             <FontAwesome name="times" size={16} color={colors.text.light} />
@@ -106,27 +107,31 @@ const ThemedNotification = ({ type, message, onClose }) => {
 };
 
 const ThemedWelcomeMessage = ({ name, greeting }) => (
-  <View style={{ marginBottom: commonStyles.spacing.lg }}>
-    <Text
+  <View style={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
+    <AppText
       style={[
-        tw`text-3xl font-bold`,
-        { color: colors.text.primary },
+        tw`text-2xl font-bold`,
+        { color: colors.text.primary, marginBottom: 2 },
       ]}
+      numberOfLines={1}
+      ellipsizeMode="tail"
     >
       Hi {name || "there"}
-    </Text>
-    <Text
+    </AppText>
+    <AppText
       style={[
-        tw`text-lg`,
+        tw`text-base`,
         { color: colors.text.secondary, fontWeight: "500" },
       ]}
+      numberOfLines={1}
+      ellipsizeMode="tail"
     >
       {greeting}
-    </Text>
+    </AppText>
   </View>
 );
 
-const HomeScreen = ({ setActiveMode, activeMode  }) => {
+const HomeScreen = ({ setActiveMode, activeMode, onNavigate }) => {
   const { user, supabase } = useAuth();
   const confettiRef = useRef(null);
   const [hasShownCelebration, setHasShownCelebration] = useState(false);
@@ -136,6 +141,9 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
   const [recentSearches, setRecentSearches] = useState([]);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [transitionLoading, setTransitionLoading] = useState(false);
+  const [hasShownWelcome, setHasShownWelcome] = useState(false);
 
   // Add these constants
   const TRENDING_SEARCHES = [
@@ -185,6 +193,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
   };
 
   useEffect(() => {
+    setLoading(true);
     const initializeApp = async () => {
       try {
         // Check onboarding status
@@ -206,7 +215,12 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
             showNotification('error', 'Failed to load profile data');
           } else {
             setDisplayName(data?.name || "User");
-            showNotification('success', 'Welcome back!');
+            // Only show welcome message if it hasn't been shown before for this user
+            const hasShownWelcomeForUser = await AsyncStorage.getItem(`hasShownWelcome_${user.id}`);
+            if (!hasShownWelcomeForUser) {
+              showNotification('success', 'Welcome back!');
+              await AsyncStorage.setItem(`hasShownWelcome_${user.id}`, 'true');
+            }
           }
         }
 
@@ -225,6 +239,8 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
       } catch (error) {
         console.error("Error during initialization:", error);
         showNotification('error', 'Failed to initialize app');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -248,6 +264,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
       }
       if (showProfile) {
         setShowProfile(false);
+        setActiveTab('home');
         return true;
       }
       if (showAuth) {
@@ -280,22 +297,22 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
     setAuthScreenVisible(false);
   };
 
-    const getThemeColor = () => {
-      switch (activeMode) {
-        case "mood":
-          return colors.accent.sage;
-        case "niche":
-          return colors.accent.orange;
-        case "image":
-          return colors.accent.olive;
-        case "textbehind":
-          return colors.accent.purple;
-        default:
-          return colors.accent.sage;
-      }
-    };
-  
-    const themeColor = getThemeColor();
+  const getThemeColor = () => {
+    switch (activeMode) {
+      case "mood":
+        return colors.accent.sage;
+      case "niche":
+        return colors.accent.orange;
+      case "image":
+        return colors.accent.olive;
+      case "meme":
+        return colors.accent.yellow;
+      default:
+        return colors.accent.sage;
+    }
+  };
+
+  const themeColor = getThemeColor();
 
   const animateModal = (show) => {
     if (show) {
@@ -336,6 +353,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
 
   const hideModal = () => {
     animateModal(false);
+    setActiveTab('home');
   };
 
   const animateTransition = (callback) => {
@@ -371,8 +389,10 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
     });
   };
 
-  const handleNavigation = (mode) => {
-    animateTransition(() => setActiveMode(mode));
+  const handleModeSelect = (mode) => {
+    setTransitionLoading(true);
+    setActiveMode(mode);
+    onNavigate('generator', mode);
   };
 
   const animateTab = (tabName) => {
@@ -397,64 +417,109 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
     setActiveTab(tabName);
   };
 
-  // FeatureCard for content creation
-  const FeatureCard = ({ icon, title, description, color, onPress }) => (
-    <TouchableOpacity
-      style={{
-        borderRadius: commonStyles.borderRadius.large,
-        padding: commonStyles.spacing.lg,
+  // FeatureCard for content creation (redesigned)
+  const FeatureCard = ({ icon, title, description, color, onPress, iconBg }) => {
+    const [pressAnim] = useState(new Animated.Value(1));
+    const gradientColors = [color, color + 'CC', color + '99'];
+
+    const handlePressIn = () => {
+      Animated.spring(pressAnim, {
+        toValue: 0.97,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 8,
+      }).start();
+    };
+    const handlePressOut = () => {
+      Animated.spring(pressAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 8,
+      }).start();
+    };
+
+    // Helper: check if icon is an emoji (not a FontAwesome name)
+    const isEmoji = typeof icon === 'string' && icon.length <= 2 && /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|[\u1F600-\u1F64F]|[\u1F300-\u1F5FF]|[\u1F680-\u1F6FF]|[\u1F1E0-\u1F1FF]/.test(icon);
+
+    return (
+      <Animated.View style={{
+        transform: [{ scale: pressAnim }],
         marginBottom: commonStyles.spacing.lg,
-        backgroundColor: color,
-        ...commonStyles.shadow.medium,
-        width: "100%",
-      }}
-      onPress={() => animateTransition(onPress)}
-    >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ flex: 1, marginRight: commonStyles.spacing.md }}>
-          <Text
-            style={{
-              color: colors.text.light,
-              fontSize: 20,
-              fontWeight: "800",
-              marginBottom: commonStyles.spacing.sm,
-              letterSpacing: 0.5,
-            }}
-          >
-            {title}
-          </Text>
-          <Text
-            style={{
-              color: colors.text.light,
-              fontSize: 16,
-              opacity: 0.95,
-              fontWeight: "500",
-            }}
-          >
-            {description}
-          </Text>
-        </View>
-        <View
+      }}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={onPress}
           style={{
-            width: 48,
-            height: 48,
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-            borderRadius: 24,
-            alignItems: "center",
-            justifyContent: "center",
+            borderRadius: commonStyles.borderRadius.large,
+            overflow: 'hidden',
+            ...commonStyles.shadow.medium,
           }}
         >
-          <FontAwesome name={icon} size={22} color={colors.text.light} />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 32,
+              paddingHorizontal: 32,
+              borderRadius: commonStyles.borderRadius.large,
+              minHeight: 100,
+            }}
+          >
+            <View style={{
+              width: 50,
+              height: 50,
+              borderRadius: 28,
+              backgroundColor: iconBg || 'rgba(255,255,255,0.18)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 22,
+              shadowColor: color,
+              shadowOpacity: 0.18,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 4,
+            }}>
+              {isEmoji ? (
+                <AppText style={{ fontSize: 28, color: colors.text.light, textAlign: 'center' }}>{icon}</AppText>
+              ) : (
+                <FontAwesome name={icon} size={28} color={colors.text.light} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText
+                style={{
+                  color: colors.text.light,
+                  fontSize: 18,
+                  fontWeight: '300',
+                  marginBottom: 4,
+                  letterSpacing: 0.2,
+                }}
+              >
+                {title}
+              </AppText>
+              <AppText
+                style={{
+                  color: colors.text.light,
+                  fontSize: 15,
+                  opacity: 0.92,
+                  fontWeight: '700',
+                  lineHeight: 22,
+                }}
+              >
+                {description}
+              </AppText>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   // Update profile button
   const handleProfilePress = () => {
@@ -514,7 +579,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
         console.error('Error saving recent searches:', error);
       }
       // Handle search submission
-      handleNavigation("search");
+      handleModeSelect("search");
     }
   };
 
@@ -526,6 +591,34 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
       console.error('Error clearing recent searches:', error);
     }
   };
+
+  // Replace getGreetingEmoji with getGreetingIcon
+  const getGreetingIcon = () => {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return { name: 'sun-o', color: '#FFD166' }; // Morning ☀️
+    }
+
+    if (hour >= 12 && hour < 17) {
+      return { name: 'coffee', color: '#FFB347' }; // Afternoon ☕
+    }
+
+    if (hour >= 17 && hour < 20) {
+      return { name: 'coffee', color: '#FF7043' }; // Evening ☁️ (sunset vibe)
+    }
+
+    return { name: 'moon-o', color: '#90CAF9' }; // Night 🌙
+  };
+
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.main }}>
+        <DotsLoader color={colors.accent.sage} size={16} />
+      </SafeAreaView>
+    );
+  }
 
   if (showOnboarding) {
     return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
@@ -540,7 +633,10 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
       <ProfileScreen
         setActiveMode={(mode) => {
           if (mode === null) {
-            animateTransition(() => setShowProfile(false));
+            animateTransition(() => {
+              setShowProfile(false);
+              setActiveTab('home');
+            });
           } else {
             animateTransition(() => setActiveMode(mode));
           }
@@ -550,156 +646,215 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
     );
   }
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.main }}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={colors.background.main}
-      />
-      <ConfettiCannon
-        ref={confettiRef}
-        count={200}
-        origin={{ x: -10, y: 0 }}
-        autoStart={false}
-        fadeOut={true}
-        colors={["#FFD700", "#FFA500", "#FF69B4", "#87CEEB", "#98FB98"]}
-      />
-      {/* Add notification component */}
-      {notification && (
-        <ThemedNotification
-          type={notification.type}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-      <Animated.View
-        style={{
-          flex: 1,
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          <View
-            style={{
-              paddingHorizontal: commonStyles.spacing.xl,
-              paddingTop: commonStyles.spacing.xl,
-            }}
-          >
-            {/* Header */}
-            <View
-              style={[
-                tw`flex-row justify-between items-center mb-4 ${{
-                  backgroundColor: colors.background.card,
-                }},
- `,
-                { minHeight: 60 },
-              ]}
-            >
-              <View style={tw`flex-1 mr-4`}>
-                <ThemedWelcomeMessage
-                  name={localUser?.name || displayName}
-                  greeting={currentGreeting}
-                />
-              </View>
-              {user ? (
-                <TouchableOpacity
-                  onPress={handleProfilePress}
-                  style={{
-                    backgroundColor: colors.accent.sage,
-                    width: 50,
-                    height: 50,
-                    borderRadius: 25,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    ...commonStyles.shadow.light,
-                    flexShrink: 0,
-                    marginTop: -24,
-                    borderWidth: 0.5,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: colors.text.light,
-                      fontSize: 18,
-                      fontWeight: "700",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {(localUser?.name || displayName || "U")[0]}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => handleNavigation("credits")}
-                  style={[
-                    tw`flex-row items-center px-4 py-2 rounded-full`,
-                    { backgroundColor: themeColor },
-                    { flexShrink: 0, marginTop: -24 },
-                  ]}
-                >
-                  <FontAwesomeIcon
-                    icon={faCoins}
-                    size={12}
-                    color={colors.text.light}
-                    style={tw`mr-1.5`}
-                  />
-                  <Text
-                    style={[
-                      tw`text-sm font-semibold`,
-                      { color: colors.text.light },
-                    ]}
-                  >
-                    {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+  // Show loader overlay if navigating away
+  if (transitionLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.main }}>
+        <DotsLoader color={colors.accent.sage} size={16} />
+      </SafeAreaView>
+    );
+  }
 
-            {/* Search Bar */}
-            <View style={{ marginBottom: commonStyles.spacing.xl }}>
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <LinearGradient
+        colors={[colors.background.main, '#F5F7FA', '#E8ECF3']}
+        style={{ flex: 1 }}
+      >
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
+        <ConfettiCannon
+          ref={confettiRef}
+          count={200}
+          origin={{ x: -10, y: 0 }}
+          autoStart={false}
+          fadeOut={true}
+          colors={["#FFD700", "#FFA500", "#FF69B4", "#87CEEB", "#98FB98"]}
+        />
+        {/* Add notification component */}
+        {notification && (
+          <ThemedNotification
+            type={notification.type}
+            message={notification.message}
+            onClose={() => setNotification(null)}
+          />
+        )}
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          }}
+        >
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            <View
+              style={{
+                paddingHorizontal: commonStyles.spacing.xl,
+                paddingTop: commonStyles.spacing.xl,
+                paddingBottom: commonStyles.spacing.xl * 1,
+              }}
+            >
+              {/* Header */}
               <View
                 style={{
-                  backgroundColor: colors.background.card,
-                  borderRadius: commonStyles.borderRadius.medium,
-                  paddingHorizontal: commonStyles.spacing.md,
-                  paddingVertical: commonStyles.spacing.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderWidth: 0.5,
-                  ...commonStyles.shadow.light,
+                  borderRadius: commonStyles.borderRadius.large,
+                  marginBottom: 12,
+                  paddingVertical: 20,
+                  paddingHorizontal: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  minHeight: 54,
                 }}
               >
-                <FontAwesome
-                  name="search"
-                  size={18}
-                  color={colors.text.secondary}
-                  style={{ marginRight: commonStyles.spacing.xs }}
-                />
-                <TextInput
-                  placeholder="Search hashtags, captions, or styles..."
-                  placeholderTextColor={colors.text.secondary}
-                  style={{
-                    flex: 1,
-                    color: colors.text.primary,
-                    fontSize: 16,
-                  }}
-                  value={searchQuery}
-                  onChangeText={handleSearch}
-                  onSubmitEditing={handleSearchSubmit}
-                  returnKeyType="search"
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSearchQuery("");
-                      setShowSearchResults(false);
+                <View style={{ flex: 1 }}>
+                  <AppText
+                    style={{
+                      color: colors.text.primary,
+                      fontSize: 48,
+                      fontWeight: '300',
                     }}
-                    style={{ padding: 5 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
-                    <FontAwesome name="times-circle" size={18} color={colors.text.secondary} />
+                    {`Hi, ${(localUser?.name || displayName || 'there')}`}
+                  </AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <AppText
+                      style={{
+                        color: colors.text.secondary,
+                        fontSize: 18,
+                        fontWeight: '700',
+                      }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {currentGreeting}
+                    </AppText>
+                    <FontAwesome
+                      name={getGreetingIcon().name}
+                      size={20}
+                      color={getGreetingIcon().color}
+                      style={{ marginLeft: 6, marginTop: 4 }}
+                    />
+                  </View>
+                </View>
+                {user ? (
+                  <TouchableOpacity
+                    onPress={handleProfilePress}
+                    style={{
+                      backgroundColor: colors.accent.sage,
+                      width: 80,
+                      height: 80,
+                      borderRadius: 50,
+                      marginTop: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      ...commonStyles.shadow.medium,
+                      flexShrink: 0,
+                      borderWidth: 1,
+                      borderColor: colors.background.main,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Image
+                      source={{
+                        uri: `https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(localUser?.name || displayName || "User")}`,
+                      }}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 22,
+                        backgroundColor: 'white',
+                      }}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => handleModeSelect("credits")}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 16,
+                      paddingVertical: 4,
+                      borderRadius: 999,
+                      backgroundColor: themeColor,
+                      flexShrink: 0,
+                      borderWidth: 1,
+                      borderColor: colors.background.main,
+                      ...commonStyles.shadow.light,
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faCoins}
+                      size={14}
+                      color={colors.text.light}
+                      style={{ marginRight: 6 }}
+                    />
+                    <AppText
+                      style={{
+                        color: colors.text.light,
+                        fontSize: 18,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {MAX_ANONYMOUS_GENERATIONS - anonymousUsageCount}
+                    </AppText>
                   </TouchableOpacity>
                 )}
+              </View>
+
+              {/* Search Bar */}
+              <View style={{ marginBottom: commonStyles.spacing.xl + 10 }}>
+                <View
+                  style={{
+                    borderRadius: 24,
+                    paddingHorizontal: 22,
+                    paddingVertical: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    ...commonStyles.shadow.light,
+                  }}
+                >
+                  <FontAwesome
+                    name="search"
+                    size={20}
+                    color={colors.text.secondary}
+                    style={{ marginRight: 10 }}
+                  />
+                  <TextInput
+                    placeholder="Search hashtags, captions, or styles..."
+                    placeholderTextColor={colors.text.secondary}
+                    style={{
+                      flex: 1,
+                      color: colors.text.primary,
+                      fontSize: 17,
+                      fontWeight: '500',
+                    }}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                    onSubmitEditing={handleSearchSubmit}
+                    returnKeyType="search"
+                    selectionColor={colors.accent.sage}
+                    underlineColorAndroid="transparent"
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSearchQuery("");
+                        setShowSearchResults(false);
+                      }}
+                      style={{ padding: 5 }}
+                    >
+                      <FontAwesome name="times-circle" size={18} color={colors.text.secondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {/* Search Results Dropdown */}
@@ -719,9 +874,9 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                 >
                   {/* Categories */}
                   <View style={{ marginBottom: 15 }}>
-                    <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                    <AppText style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
                       Categories
-                    </Text>
+                    </AppText>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       {SEARCH_CATEGORIES.map((category, index) => (
                         <TouchableOpacity
@@ -747,7 +902,7 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                           >
                             <FontAwesome name={category.icon} size={20} color={colors.text.primary} />
                           </View>
-                          <Text style={{ color: colors.text.primary, fontSize: 12 }}>{category.label}</Text>
+                          <AppText style={{ color: colors.text.primary, fontSize: 12 }}>{category.label}</AppText>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -755,9 +910,9 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
 
                   {/* Trending Searches */}
                   <View style={{ marginBottom: 15 }}>
-                    <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                    <AppText style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
                       Trending Now
-                    </Text>
+                    </AppText>
                     {TRENDING_SEARCHES.map((trend, index) => (
                       <TouchableOpacity
                         key={index}
@@ -775,10 +930,10 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                         }}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ color: colors.text.primary, fontSize: 14, marginRight: 8 }}>#{index + 1}</Text>
-                          <Text style={{ color: colors.text.primary, fontSize: 14 }}>{trend.text}</Text>
+                          <AppText style={{ color: colors.text.primary, fontSize: 14, marginRight: 8 }}>#{index + 1}</AppText>
+                          <AppText style={{ color: colors.text.primary, fontSize: 14 }}>{trend.text}</AppText>
                         </View>
-                        <Text style={{ color: colors.text.secondary, fontSize: 12 }}>{trend.count} posts</Text>
+                        <AppText style={{ color: colors.text.secondary, fontSize: 12 }}>{trend.count} posts</AppText>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -787,12 +942,12 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                   {searchQuery.length === 0 && (
                     <>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600' }}>
+                        <AppText style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600' }}>
                           Recent Searches
-                        </Text>
+                        </AppText>
                         {recentSearches.length > 0 && (
                           <TouchableOpacity onPress={clearRecentSearches}>
-                            <Text style={{ color: colors.accent.sage, fontSize: 14 }}>Clear All</Text>
+                            <AppText style={{ color: colors.accent.sage, fontSize: 14 }}>Clear All</AppText>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -813,13 +968,13 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                             }}
                           >
                             <FontAwesome name="history" size={16} color={colors.text.secondary} style={{ marginRight: 10 }} />
-                            <Text style={{ color: colors.text.primary, fontSize: 14 }}>{search}</Text>
+                            <AppText style={{ color: colors.text.primary, fontSize: 14 }}>{search}</AppText>
                           </TouchableOpacity>
                         ))
                       ) : (
-                        <Text style={{ color: colors.text.secondary, fontSize: 14, textAlign: 'center', padding: 10 }}>
+                        <AppText style={{ color: colors.text.secondary, fontSize: 14, textAlign: 'center', padding: 10 }}>
                           No recent searches
-                        </Text>
+                        </AppText>
                       )}
                     </>
                   )}
@@ -827,9 +982,9 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                   {/* Search Suggestions */}
                   {searchQuery.length > 0 && (
                     <>
-                      <Text style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
+                      <AppText style={{ color: colors.text.secondary, fontSize: 14, fontWeight: '600', marginBottom: 10 }}>
                         Suggestions
-                      </Text>
+                      </AppText>
                       {searchSuggestions.map((suggestion, index) => (
                         <TouchableOpacity
                           key={index}
@@ -846,419 +1001,347 @@ const HomeScreen = ({ setActiveMode, activeMode  }) => {
                           }}
                         >
                           <FontAwesome name="search" size={16} color={colors.text.secondary} style={{ marginRight: 10 }} />
-                          <Text style={{ color: colors.text.primary, fontSize: 14 }}>{suggestion}</Text>
+                          <AppText style={{ color: colors.text.primary, fontSize: 14 }}>{suggestion}</AppText>
                         </TouchableOpacity>
                       ))}
                     </>
                   )}
                 </View>
               )}
-            </View>
 
-            {/* Content Creation Section */}
-            <View style={{ marginBottom: commonStyles.spacing.xl }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: commonStyles.spacing.lg,
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.text.primary,
-                    fontSize: 24,
-                    fontWeight: "800",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Content Creation
-                </Text>
-                <TouchableOpacity>
-                  <Text
-                    style={{
-                      color: colors.accent.sage,
-                      fontSize: 16,
-                      fontWeight: "600",
-                    }}
-                  >
-                    See all
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flexDirection: "column" }}>
-                <FeatureCard
-                  icon="magic"
-                  title="Smart Captions"
-                  description="AI-powered captions"
-                  color={colors.accent.sage}
-                  onPress={() => handleNavigation("mood")}
-                />
-                <FeatureCard
-                  icon="hashtag"
-                  title="Hashtag Pro"
-                  description="Trending hashtags"
-                  color={colors.accent.orange}
-                  onPress={() => handleNavigation("niche")}
-                />
-                <FeatureCard
-                  icon="image"
-                  title="Image Captions"
-                  description="Vision-based captions"
-                  color={colors.accent.olive}
-                  onPress={() => handleNavigation("image")}
-                />
-              </View>
-            </View>
-
-            {/* Recent Activities */}
-            {/* <View style={{ marginBottom: commonStyles.spacing.xl }}>
-              <Text
-                style={{
-                  color: colors.text.primary,
-                  fontSize: 24,
-                  fontWeight: "800",
-                  marginBottom: commonStyles.spacing.lg,
-                  letterSpacing: 0.5,
-                }}
-              >
-                Recent Activities
-              </Text>
-              <View
-                style={{
-                  backgroundColor: colors.accent.beige,
-                  borderRadius: commonStyles.borderRadius.medium,
-                  padding: commonStyles.spacing.lg,
-                  marginBottom: commonStyles.spacing.md,
-                  ...commonStyles.shadow.light,
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.text.primary,
-                    fontWeight: "700",
-                    fontSize: 18,
-                    marginBottom: commonStyles.spacing.sm,
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  Generated Content
-                </Text>
-                <Text
-                  style={{
-                    color: colors.text.secondary,
-                    fontSize: 16,
-                    fontWeight: "500",
-                  }}
-                >
-                  View your recent generations
-                </Text>
-              </View>
-            </View> */}
-          </View>
-        </ScrollView>
-      </Animated.View>
-
-      {/* Modern Bottom Navigation */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-around",
-          paddingVertical: commonStyles.spacing.md,
-          backgroundColor: colors.background.main,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          borderTopWidth: 1,
-          borderLeftWidth: 1,
-          borderRightWidth: 1,
-          borderColor: "rgba(0,0,0,0.05)",
-          ...commonStyles.shadow.medium,
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingBottom: Platform.OS === "ios" ? 20 : commonStyles.spacing.md,
-          marginHorizontal: 8,
-        }}
-      >
-        <TouchableOpacity
-          style={{ alignItems: "center" }}
-          onPress={() => animateTab("home")}
-        >
-          <Animated.View
-            style={{
-              transform: [{ scale: tabAnimations.home }],
-              backgroundColor:
-                activeTab === "home"
-                  ? colors.accent.sage + "20"
-                  : "transparent",
-              padding: 12,
-              borderRadius: 12,
-            }}
-          >
-            <FontAwesome
-              name="home"
-              size={22}
-              color={
-                activeTab === "home"
-                  ? colors.accent.sage
-                  : colors.text.secondary
-              }
-            />
-          </Animated.View>
-          <Text
-            style={{
-              color:
-                activeTab === "home"
-                  ? colors.accent.sage
-                  : colors.text.secondary,
-              fontSize: 12,
-              marginTop: 4,
-              fontWeight: activeTab === "home" ? "700" : "500",
-            }}
-          >
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: "center" }}
-          onPress={() => {
-            animateTab("create");
-            showModal();
-          }}
-        >
-          <Animated.View
-            style={{
-              transform: [{ scale: tabAnimations.create }],
-              backgroundColor:
-                activeTab === "create"
-                  ? colors.accent.teal + "20"
-                  : "transparent",
-              padding: 12,
-              borderRadius: 12,
-            }}
-          >
-            <FontAwesome
-              name="plus"
-              size={22}
-              color={
-                activeTab === "create"
-                  ? colors.accent.teal
-                  : colors.text.secondary
-              }
-            />
-          </Animated.View>
-          <Text
-            style={{
-              color:
-                activeTab === "create"
-                  ? colors.accent.teal
-                  : colors.text.secondary,
-              fontSize: 12,
-              marginTop: 4,
-              fontWeight: activeTab === "create" ? "700" : "500",
-            }}
-          >
-            Create
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: "center" }}
-          onPress={() => {
-            animateTab("profile");
-            user ? setShowProfile(true) : setShowAuth(true);
-          }}
-        >
-          <Animated.View
-            style={{
-              transform: [{ scale: tabAnimations.profile }],
-              backgroundColor:
-                activeTab === "profile"
-                  ? colors.accent.purple + "20"
-                  : "transparent",
-              padding: 12,
-              borderRadius: 12,
-            }}
-          >
-            <FontAwesome
-              name="user"
-              size={22}
-              color={
-                activeTab === "profile"
-                  ? colors.accent.purple
-                  : colors.text.secondary
-              }
-            />
-          </Animated.View>
-          <Text
-            style={{
-              color:
-                activeTab === "profile"
-                  ? colors.accent.purple
-                  : colors.text.secondary,
-              fontSize: 12,
-              marginTop: 4,
-              fontWeight: activeTab === "profile" ? "700" : "500",
-            }}
-          >
-            Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Generator Options Modal */}
-      <Modal
-        visible={showGeneratorModal}
-        transparent
-        animationType="none"
-        onRequestClose={hideModal}
-      >
-        <TouchableWithoutFeedback onPress={hideModal}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0,0,0,0.8)",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <TouchableWithoutFeedback>
-              <Animated.View
-                style={{
-                  width: 280,
-                  padding: 20,
-                  alignItems: "center",
-                  opacity: modalOpacity,
-                  transform: [{ scale: modalScale }],
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    gap: 20,
-                  }}
-                >
-                  <TouchableOpacity
-                    style={{
-                      width: 90,
-                      height: 90,
-                      borderRadius: 12,
-                      padding: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 1.5,
-                      borderColor: colors.accent.sage,
-                      backgroundColor: colors.accent.sage,
-                    }}
+              {/* Content Creation Section (minimal, no section title/subtitle) */}
+              <View style={{ marginBottom: commonStyles.spacing.lg }}>
+                <View style={{ flexDirection: "column" }}>
+                  <FeatureCard
+                    icon="magic"
+                    title="Smart Captions"
+                    description="AI-powered captions"
+                    color={colors.accent.beige}
                     onPress={() => {
-                      hideModal();
-                      handleNavigation("mood");
+                      setTransitionLoading(true);
+                      setTimeout(() => {
+                        handleModeSelect("mood");
+                      }, 400);
                     }}
-                  >
-                    <FontAwesome
-                      name="magic"
-                      size={28}
-                      color={colors.text.light}
-                    />
-                    <Text
-                      style={{
-                        color: colors.text.light,
-                        fontSize: 13,
-                        marginTop: 8,
-                        fontWeight: "600",
-                      }}
-                    >
-                      Caption
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{
-                      width: 90,
-                      height: 90,
-                      borderRadius: 12,
-                      padding: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 1.5,
-                      borderColor: colors.accent.orange,
-                      backgroundColor: colors.accent.orange,
-                    }}
+                  />
+                  <FeatureCard
+                    icon="hashtag"
+                    title="Hashtag Pro"
+                    description="Trending hashtags"
+                    color={colors.accent.teal}
                     onPress={() => {
-                      hideModal();
-                      handleNavigation("niche");
+                      setTransitionLoading(true);
+                      setTimeout(() => {
+                        handleModeSelect("niche");
+                      }, 400);
                     }}
-                  >
-                    <FontAwesome
-                      name="hashtag"
-                      size={28}
-                      color={colors.text.light}
-                    />
-                    <Text
-                      style={{
-                        color: colors.text.light,
-                        fontSize: 13,
-                        marginTop: 8,
-                        fontWeight: "600",
-                      }}
-                    >
-                      Hashtags
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{
-                      width: 90,
-                      height: 90,
-                      borderRadius: 12,
-                      padding: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 1.5,
-                      borderColor: colors.accent.olive,
-                      backgroundColor: colors.accent.olive,
-                    }}
+                  />
+                  <FeatureCard
+                    icon="image"
+                    title="Image Captions"
+                    description="Vision-based captions"
+                    color={colors.accent.sage}
                     onPress={() => {
-                      hideModal();
-                      handleNavigation("image");
+                      setTransitionLoading(true);
+                      setTimeout(() => {
+                        handleModeSelect("image");
+                      }, 400);
                     }}
-                  >
-                    <FontAwesome
-                      name="image"
-                      size={28}
-                      color={colors.text.light}
-                    />
-                    <Text
-                      style={{
-                        color: colors.text.light,
-                        fontSize: 13,
-                        marginTop: 8,
-                        fontWeight: "600",
-                      }}
-                    >
-                      image
-                    </Text>
-                  </TouchableOpacity>
+                  />
+                  <FeatureCard
+                    icon="smile-o"
+                    title="Meme Generator"
+                    description="Create viral memes with AI"
+                    color={colors.accent.yellowDark}
+                    onPress={() => {
+                      setTransitionLoading(true);
+                      setTimeout(() => {
+                        onNavigate("meme");
+                      }, 400);
+                    }}
+                  />
                 </View>
-              </Animated.View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+              </View>
+            </View>
+          </ScrollView>
+          {/* Add bottom padding to prevent content from being too close to nav */}
+          {/* This should be inside the ScrollView, not after it */}
+          <View style={{ height: 32 }} />
+        </Animated.View>
 
-      {/* Auth Screen Modal */}
-      {authScreenVisible && (
+        {/* Minimal Modern Bottom Navigation */}
         <View
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingVertical: 10,
+            paddingHorizontal: 28,
+            backgroundColor: 'rgba(255,255,255,0.85)',
+            borderRadius: 32,
+            position: "absolute",
+            left: 24,
+            right: 24,
+            bottom: Platform.OS === "ios" ? 28 : 18,
+            shadowColor: colors.shadow.dark,
+            shadowOpacity: 0.08,
+            shadowRadius: 18,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 6,
+          }}
         >
-          <AuthScreen onClose={handleAuthClose} />
+          <TouchableOpacity
+            style={{ alignItems: "center", flex: 1 }}
+            onPress={() => animateTab("home")}
+          >
+            <Animated.View
+              style={{
+                transform: [{ scale: tabAnimations.home }],
+                backgroundColor: 'transparent',
+                padding: 8,
+                borderRadius: 16,
+              }}
+            >
+              <FontAwesome
+                name="home"
+                size={26}
+                color={colors.accent.sage}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ alignItems: "center", flex: 1 }}
+            onPress={() => {
+              animateTab("create");
+              showModal();
+            }}
+          >
+            <Animated.View
+              style={{
+                transform: [{ scale: tabAnimations.create }],
+                backgroundColor: 'transparent',
+                padding: 8,
+                borderRadius: 16,
+              }}
+            >
+              <FontAwesome
+                name="plus"
+                size={26}
+                color={colors.text.secondary}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ alignItems: "center", flex: 1 }}
+            onPress={() => {
+              animateTab("profile");
+              user ? setShowProfile(true) : setShowAuth(true);
+            }}
+          >
+            <Animated.View
+              style={{
+                transform: [{ scale: tabAnimations.profile }],
+                backgroundColor: 'transparent',
+                padding: 8,
+                borderRadius: 16,
+              }}
+            >
+              <FontAwesome
+                name="user"
+                size={26}
+                color={colors.text.secondary}
+              />
+            </Animated.View>
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Generator Options Modal */}
+        <Modal
+          visible={showGeneratorModal}
+          transparent
+          animationType="none"
+          onRequestClose={hideModal}
+        >
+          <TouchableWithoutFeedback onPress={hideModal}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.8)",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <TouchableWithoutFeedback>
+                <Animated.View
+                  style={{
+                    width: 280,
+                    padding: 20,
+                    alignItems: "center",
+                    opacity: modalOpacity,
+                    transform: [{ scale: modalScale }],
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                      gap: 20,
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 12,
+                        padding: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1.5,
+                        backgroundColor: colors.accent.beige,
+                      }}
+                      onPress={() => {
+                        hideModal();
+                        handleModeSelect("mood");
+                      }}
+                    >
+                      <FontAwesome
+                        name="magic"
+                        size={28}
+                        color={colors.text.light}
+                      />
+                      <AppText
+                        style={{
+                          color: colors.text.light,
+                          fontSize: 13,
+                          marginTop: 8,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Caption
+                      </AppText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 12,
+                        padding: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1.5,
+                        borderColor: colors.accent.teal,
+                        backgroundColor: colors.accent.teal,
+                      }}
+                      onPress={() => {
+                        hideModal();
+                        handleModeSelect("niche");
+                      }}
+                    >
+                      <FontAwesome
+                        name="hashtag"
+                        size={28}
+                        color={colors.text.light}
+                      />
+                      <AppText
+                        style={{
+                          color: colors.text.light,
+                          fontSize: 13,
+                          marginTop: 8,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Hashtags
+                      </AppText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 12,
+                        padding: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1.5,
+                        borderColor: colors.accent.sage,
+                        backgroundColor: colors.accent.sage,
+                      }}
+                      onPress={() => {
+                        hideModal();
+                        handleModeSelect("image");
+                      }}
+                    >
+                      <FontAwesome
+                        name="image"
+                        size={28}
+                        color={colors.text.light}
+                      />
+                      <AppText
+                        style={{
+                          color: colors.text.light,
+                          fontSize: 13,
+                          marginTop: 8,
+                          fontWeight: "600",
+                        }}
+                      >
+                        image
+                      </AppText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 12,
+                        padding: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1.5,
+                        borderColor: colors.accent.yellowDark,
+                        backgroundColor: colors.accent.yellowDark,
+                      }}
+                      onPress={() => {
+                        hideModal();
+                        setTransitionLoading(true);
+                        onNavigate("meme");
+                      }}
+                    >
+                      <FontAwesome
+                        name="smile-o"
+                        size={28}
+                        color={colors.text.light}
+                      />
+                      <AppText
+                        style={{
+                          color: colors.text.light,
+                          fontSize: 13,
+                          marginTop: 8,
+                          fontWeight: "600",
+                        }}
+                      >
+                        AI Memes
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* Auth Screen Modal */}
+        {authScreenVisible && (
+          <View
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          >
+            <AuthScreen onClose={handleAuthClose} />
+          </View>
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 };
