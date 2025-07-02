@@ -28,7 +28,7 @@ Hashly AI is a cross-platform, AI-powered meme and caption generator app built w
 
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/yourusername/hashly-ai.git
+   git clone https://github.com/codebylalit/hashly-ai.git
    cd hashly-ai
    ```
 2. **Install dependencies:**
